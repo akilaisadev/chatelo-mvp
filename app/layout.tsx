@@ -1,20 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { Space_Grotesk, Space_Mono } from "next/font/google";
 
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-space-grotesk",
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
-
-const spaceMono = Space_Mono({
-  subsets: ["latin"],
-  variable: "--font-space-mono",
-  weight: ["400", "700"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Chatelo — Talk to one stranger, then the line goes dead",
@@ -33,8 +19,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body
-        className={`${spaceGrotesk.variable} ${spaceMono.variable} bg-paper font-sans text-ink antialiased selection:bg-signal selection:text-ink`}
+        className="bg-paper font-sans text-ink antialiased selection:bg-signal selection:text-ink"
       >
         {children}
       </body>
