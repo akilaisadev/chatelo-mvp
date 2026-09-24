@@ -181,17 +181,27 @@ export function ChatSession({
           )}
 
           {chatStatus === "disconnected" && (
-            <div className="mt-8 rounded-2xl border border-signal bg-signalSoft px-6 py-5">
-              <p className="flex items-center gap-2 text-base font-semibold text-signalText">
-                <PhoneOff size={17} aria-hidden="true" />
-                The line went dead
+            <div className="mt-8 rounded-2xl border-2 border-lineStrong bg-card p-6 text-center shadow-sm sm:p-7">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-signal/25 text-signalText">
+                <PhoneOff size={22} aria-hidden="true" />
+              </div>
+              <h3 className="text-base font-bold text-ink sm:text-lg">
+                {statusNotice || "Stranger has disconnected."}
+              </h3>
+              <p className="mt-1.5 text-xs text-muted sm:text-sm">
+                Press <kbd className="kbd-shortcut font-semibold">ESC</kbd> or{" "}
+                <kbd className="kbd-shortcut font-semibold">ENTER</kbd> on your keyboard to talk to someone new.
               </p>
-              <p className="mt-1.5 text-sm text-muted">
-                {statusNotice || "The other side left."} Press{" "}
-                <kbd className="kbd-shortcut">ESC</kbd> or hit{" "}
-                <span className="font-semibold text-ink">New line</span> to pick
-                up another.
-              </p>
+              <div className="mt-5 flex justify-center">
+                <button
+                  type="button"
+                  onClick={onStopAction}
+                  className="inline-flex items-center gap-2.5 rounded-full bg-ink px-6 py-3 text-sm font-bold text-paper shadow-md transition-all hover:bg-signal hover:text-ink active:scale-95"
+                >
+                  <span>Find a new stranger</span>
+                  <kbd className="rounded border border-current/25 px-1.5 py-0.5 font-mono text-[11px]">[ESC]</kbd>
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -283,7 +293,7 @@ export function ChatSession({
                   ? "Type a line — Enter sends"
                   : chatStatus === "searching"
                     ? "Waiting for the operator to connect you…"
-                    : "The line is closed. New line to talk again."
+                    : "Stranger disconnected. Press ESC or Enter to start a new chat."
               }
               className="max-h-32 flex-1 resize-none bg-transparent px-2 py-2.5 text-[15px] text-ink placeholder:text-faint focus:outline-none disabled:cursor-not-allowed"
             />
@@ -301,10 +311,10 @@ export function ChatSession({
 
         <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-x-4 gap-y-1 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-xs text-faint sm:px-6">
           <span>
-            <kbd className="kbd-shortcut">ESC</kbd> stop or skip
+            <kbd className="kbd-shortcut">ESC</kbd> {chatStatus === "disconnected" ? "new chat" : "stop or skip"}
           </span>
           <span>
-            <kbd className="kbd-shortcut">ENTER</kbd> send a line
+            <kbd className="kbd-shortcut">ENTER</kbd> {chatStatus === "disconnected" ? "new chat" : "send a line"}
           </span>
         </div>
       </div>

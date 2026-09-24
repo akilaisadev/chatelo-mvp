@@ -43,6 +43,25 @@ export function AnonymousChat() {
         } else if (status === "disconnected") {
           sounds.playDisconnect();
           setStopConfirm(false);
+          const disconnectText = notice || "Stranger has disconnected.";
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (last && last.sender === "system" && (last.text.includes("disconnected") || last.text.includes("skipped"))) {
+              return prev;
+            }
+            return [
+              ...prev,
+              {
+                id: Math.random().toString(36).slice(2),
+                sender: "system",
+                text: disconnectText,
+                timestamp: new Date().toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+              },
+            ];
+          });
         }
       },
       onMessage: (msg) => {
@@ -89,7 +108,7 @@ export function AnonymousChat() {
         if (stopConfirmTimeoutRef.current)
           clearTimeout(stopConfirmTimeoutRef.current);
         setStopConfirm(false);
-        managerRef.current?.disconnect(true, "The line went dead.");
+        managerRef.current?.disconnect(true, "You disconnected.");
       }
       return;
     }
@@ -99,7 +118,7 @@ export function AnonymousChat() {
     }
   }, [chatStatus, stopConfirm, startChat]);
 
-  // Keyboard shortcuts: ESC to stop/skip, SPACE to start from the lobby.
+  // Keyboard shortcuts: ESC/ENTER to stop/skip/next, SPACE to start from the lobby.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -112,6 +131,12 @@ export function AnonymousChat() {
           e.preventDefault();
           handleStopAction();
         }
+        return;
+      }
+
+      if (e.key === "Enter" && chatStatus === "disconnected") {
+        e.preventDefault();
+        handleStopAction();
         return;
       }
 

@@ -151,7 +151,7 @@ export class StrangerManager {
         this.events.onTyping(Boolean(data.isTyping));
       }
     } else if (data.type === "SESSION_ENDED") {
-      if (data.sessionId === this.currentSessionId) {
+      if (!this.currentSessionId || data.sessionId === this.currentSessionId || this.mode === "server") {
         this.disconnect(false, (data.reason as string) || "Stranger has disconnected.");
       }
     }
