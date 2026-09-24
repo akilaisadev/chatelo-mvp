@@ -364,7 +364,15 @@ class ServerChatHub {
 
     const session = this.activeSessions.get(sessionId);
     if (session) {
-      if (!session.isAiSession) {
+      if (session.isAiSession) {
+        // In AI session, peerId is the connected human user.
+        // Deliver SESSION_ENDED so the client UI shows 'disconnected' and enables 'New line [ESC]'!
+        this.sendToPeer(peerId, {
+          type: "SESSION_ENDED",
+          sessionId,
+          reason,
+        });
+      } else {
         const partnerId = session.peer1Id === peerId ? session.peer2Id : session.peer1Id;
         this.sendToPeer(partnerId, {
           type: "SESSION_ENDED",
