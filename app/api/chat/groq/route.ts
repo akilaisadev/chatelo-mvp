@@ -30,7 +30,16 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "reply") {
-      const history: ChatTurn[] = Array.isArray(body.history) ? body.history : [];
+      const rawHistory = Array.isArray(body.history) ? body.history : [];
+      const history: ChatTurn[] = rawHistory
+        .map((item: any) => ({
+          role:
+            item.role === "user" || item.sender === "user"
+              ? ("user" as const)
+              : ("assistant" as const),
+          content: String(item.content ?? item.text ?? "").trim(),
+        }))
+        .filter((item: { role: "user" | "assistant"; content: string }) => item.content.length > 0);
       const persona: StrangerProfile = body.persona || pickStrangerProfile(interests);
 
       // Check if user's latest message was toxic / aggressive / demands skip
