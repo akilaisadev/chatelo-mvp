@@ -7,6 +7,11 @@ import {
   pickStrangerProfile,
   StrangerProfile,
 } from "./groq-stranger";
+import {
+  isAggressiveOrRude,
+  getRandomSkipLine,
+  isAiAttemptingToLeave,
+} from "./moderation";
 
 export interface PeerWaiting {
   peerId: string;
@@ -252,7 +257,35 @@ class ServerChatHub {
     if (session.isAiSession) {
       session.aiHistory?.push({ role: "user", content: trimmed });
 
-      // Immediate typing indicator
+      // Immediate auto-skip if user is toxic, aggressive, abusive, or explicitly demanding a skip
+      if (isAggressiveOrRude(trimmed)) {
+        this.sendToPeer(peerId, { type: "TYPING", isTyping: true });
+
+        const partingLine = getRandomSkipLine();
+        setTimeout(() => {
+          if (this.peerSessionMap.get(peerId) !== sessionId) return;
+
+          this.sendToPeer(peerId, { type: "TYPING", isTyping: false });
+          session.aiHistory?.push({ role: "assistant", content: partingLine });
+
+          this.sendToPeer(peerId, {
+            type: "MESSAGE",
+            sessionId,
+            senderId: session.peer2Id,
+            text: partingLine,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          });
+
+          // Disconnect immediately after parting line
+          setTimeout(() => {
+            this.endSession(peerId, "Stranger has skipped the chat.");
+          }, 500);
+        }, 600);
+
+        return true;
+      }
+
+      // Immediate typing indicator for normal replies
       this.sendToPeer(peerId, { type: "TYPING", isTyping: true });
 
       // Generate Groq reply asynchronously with locked persona and full session history
@@ -266,10 +299,11 @@ class ServerChatHub {
 
         if (this.peerSessionMap.get(peerId) !== sessionId) return;
 
-        const isSkipTriggered = rawReply.toLowerCase().includes("[skip]");
-        const cleanReply = rawReply.replace(/\[skip\]/gi, "").trim() || "bye";
+        const isSkipTriggered = isAiAttemptingToLeave(rawReply);
+        const cleanReply =
+          rawReply.replace(/\[skip\]/gi, "").replace(/i'm logging off/gi, "bye").trim() || "bye";
 
-        const typingDuration = Math.min(2400, Math.max(700, cleanReply.length * 28));
+        const typingDuration = Math.min(2200, Math.max(600, cleanReply.length * 26));
         setTimeout(() => {
           if (this.peerSessionMap.get(peerId) !== sessionId) return;
 
@@ -284,11 +318,11 @@ class ServerChatHub {
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           });
 
-          // Automatically skip and end session if user is aggressive/toxic
+          // Automatically skip and end session if AI chose to skip
           if (isSkipTriggered) {
             setTimeout(() => {
               this.endSession(peerId, "Stranger has skipped the chat.");
-            }, 700);
+            }, 600);
           }
         }, typingDuration);
       })();
