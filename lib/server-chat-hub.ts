@@ -2,7 +2,11 @@
 // ZERO persistence: No database, no logs, no chat storage.
 // All messages and sessions exist purely in volatile memory during transit.
 
-import { generateGroqReply, generateGroqOpener } from "./groq-stranger";
+import {
+  generateGroqReply,
+  pickStrangerProfile,
+  StrangerProfile,
+} from "./groq-stranger";
 
 export interface PeerWaiting {
   peerId: string;
@@ -16,6 +20,7 @@ export interface ActiveSession {
   peer2Id: string;
   mutualInterests: string[];
   isAiSession: boolean;
+  persona?: StrangerProfile;
   aiHistory?: { role: "user" | "assistant"; content: string }[];
   createdAt: number;
 }
@@ -169,12 +174,15 @@ class ServerChatHub {
     const sessionId = `sess_ai_${Math.random().toString(36).slice(2, 10)}_${Date.now()}`;
     const aiPartnerId = `stranger_${Math.random().toString(36).slice(2, 8)}`;
 
+    const persona = pickStrangerProfile(interests);
+
     const session: ActiveSession = {
       sessionId,
       peer1Id: peerId,
       peer2Id: aiPartnerId,
       mutualInterests: interests,
       isAiSession: true,
+      persona,
       aiHistory: [],
       createdAt: Date.now(),
     };
@@ -189,8 +197,8 @@ class ServerChatHub {
       mutualInterests: interests,
     });
 
-    // Opening greeting from AI stranger
-    const opener = await generateGroqOpener(interests);
+    // Opening greeting from locked persona
+    const opener = persona.opener;
 
     // Natural typing delay
     setTimeout(() => {
@@ -247,10 +255,12 @@ class ServerChatHub {
       // Immediate typing indicator
       this.sendToPeer(peerId, { type: "TYPING", isTyping: true });
 
-      // Generate Groq reply asynchronously
+      // Generate Groq reply asynchronously with locked persona and full session history
       (async () => {
+        const persona = session.persona || pickStrangerProfile(session.mutualInterests);
         const reply = await generateGroqReply(
           session.aiHistory || [],
+          persona,
           session.mutualInterests
         );
 
