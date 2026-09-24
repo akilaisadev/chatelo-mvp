@@ -1,3 +1,5 @@
+import type { StrangerProfile, ChatTurn } from "@/lib/groq-stranger";
+
 export interface ChatMessage {
   id: string;
   sender: "you" | "stranger" | "system";
@@ -83,6 +85,8 @@ export class StrangerManager {
   private isConnected: boolean = false;
   private simLocation: string = "";
   private simAsl: string = "";
+  private simPersona: StrangerProfile | null = null;
+  private simHistory: ChatTurn[] = [];
 
   constructor(events: StrangerSessionEvents) {
     this.events = events;
@@ -265,11 +269,11 @@ export class StrangerManager {
       timestamp: Date.now(),
     });
 
-    // 3. Fallback to simulation ONLY if no real human matches after 8-12 seconds
-    const timeout = 9000 + Math.random() * 3000;
+    // 3. Fallback to AI stranger after ~3.5s if no human matches
+    const timeout = 3500 + Math.random() * 800;
     this.searchTimer = setTimeout(() => {
       if (this.isSearching && !this.isConnected) {
-        // Cancel server search if switching to simulation
+        // Cancel server search if switching to AI session
         fetch("/api/chat/action", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -284,38 +288,33 @@ export class StrangerManager {
     }, timeout);
   }
 
-  private startSimulatedSession() {
+  private async startSimulatedSession() {
     this.isSearching = false;
     this.isConnected = true;
     this.mode = "simulation";
     this.events.onStatusChange("connected");
 
-    const SIM_LOCATIONS = [
-      "germany, berlin! u?",
-      "toronto canada",
-      "california!",
-      "melbourne australia :)",
-      "uk, london",
-      "japan! tokyo",
-      "amsterdam netherlands",
-      "sweden, stockholm",
-      "dublin ireland, u?",
-      "barcelona spain",
-      "auckland new zealand",
-      "norway, oslo",
-      "chicago",
-      "france, paris",
-      "austin texas, u?",
-      "seattle",
-      "seoul south korea",
-      "singapore, u?",
-      "vancouver canada",
-      "rome, italy",
-    ];
-    this.simLocation = SIM_LOCATIONS[Math.floor(Math.random() * SIM_LOCATIONS.length)];
-    const age = Math.floor(Math.random() * 6) + 19;
-    const gender = Math.random() < 0.5 ? "m" : "f";
-    this.simAsl = `${age} ${gender} ${this.simLocation.replace(/[!?]|:\)/g, "").trim()}, u?`;
+    // Fetch initial stranger persona and opener from Groq
+    let opener = "yo";
+    try {
+      const res = await fetch("/api/chat/groq", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "opener",
+          interests: this.activeInterests,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.persona) this.simPersona = data.persona;
+        if (data.opener) opener = data.opener;
+      }
+    } catch {
+      // offline fallback
+    }
+
+    this.simHistory = [{ role: "assistant", content: opener }];
 
     let mutual: string[] = [];
     if (this.activeInterests.length > 0) {
@@ -326,26 +325,20 @@ export class StrangerManager {
       }
     }
 
-    const openerDelay = 1200 + Math.random() * 1600;
+    const openerDelay = 800 + Math.random() * 800;
     this.simTypingTimer = setTimeout(() => {
       if (!this.isConnected) return;
       this.events.onTyping(true);
 
-      const typeDuration = 900 + Math.random() * 1400;
+      const typeDuration = Math.min(1800, Math.max(700, opener.length * 30));
       this.simReplyTimer = setTimeout(() => {
         if (!this.isConnected) return;
         this.events.onTyping(false);
 
-        let text = OPENERS[Math.floor(Math.random() * OPENERS.length)];
-        if (mutual.length > 0 && INTEREST_REPLIES[mutual[0]]) {
-          const list = INTEREST_REPLIES[mutual[0]];
-          text = list[Math.floor(Math.random() * list.length)];
-        }
-
         this.events.onMessage({
           id: Math.random().toString(36).slice(2),
           sender: "stranger",
-          text,
+          text: opener,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         });
       }, typeDuration);
@@ -406,57 +399,69 @@ export class StrangerManager {
     }
   }
 
-  private handleSimulatedStrangerReply(userText: string) {
+  private async handleSimulatedStrangerReply(userText: string) {
     if (!this.isConnected) return;
 
     if (this.simTypingTimer) clearTimeout(this.simTypingTimer);
     if (this.simReplyTimer) clearTimeout(this.simReplyTimer);
 
-    const readPause = 800 + Math.random() * 1200;
+    this.simHistory.push({ role: "user", content: userText });
 
-    this.simTypingTimer = setTimeout(() => {
+    const readPause = 400 + Math.random() * 500;
+
+    this.simTypingTimer = setTimeout(async () => {
       if (!this.isConnected) return;
       this.events.onTyping(true);
 
       let reply = "";
-      const lower = userText.toLowerCase();
+      let shouldSkip = false;
+      let skipReason = "Stranger has skipped the chat.";
 
-      if (lower.startsWith("m") || lower.startsWith("f") || lower.includes("asl") || lower.includes("age") || lower === "m or f") {
-        reply = this.simAsl || "21 m here, u?";
-      } else if (lower.includes("where") || lower.includes("from") || lower.includes("country") || lower.includes("wya") || lower.includes("location")) {
-        reply = this.simLocation || "germany, berlin! u?";
-      } else if (lower.includes("music") || lower.includes("song") || lower.includes("band")) {
-        reply = "mostly into indie rock and 90s electronic stuff lately, what about you?";
-      } else if (lower.includes("game") || lower.includes("gaming") || lower.includes("play")) {
-        reply = "mostly counter-strike and indie roguelikes on steam! what do you play?";
-      } else if (lower.includes("code") || lower.includes("dev") || lower.includes("programming")) {
-        reply = "nice! typescript & rust are fun, building anything interesting right now?";
-      } else if (lower.includes("movie") || lower.includes("film") || lower.includes("watch")) {
-        reply = "Interstellar and Drive are up there for me. ever watched anything by Denis Villeneuve?";
-      } else if (lower.endsWith("?")) {
-        const answers = [
-          "honestly yeah, pretty much",
-          "not really tbh, why do you ask?",
-          "hard to say, depends on the mood haha",
-          "definitely! what do you think?",
-          "good question honestly, haven't thought about that much",
-        ];
-        reply = answers[Math.floor(Math.random() * answers.length)];
-      } else {
+      try {
+        const res = await fetch("/api/chat/groq", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "reply",
+            history: this.simHistory,
+            persona: this.simPersona,
+            interests: this.activeInterests,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          reply = data.reply || "";
+          shouldSkip = Boolean(data.skip);
+          if (data.reason) skipReason = data.reason;
+        }
+      } catch {
+        // Fallback if offline
+      }
+
+      if (!reply) {
         reply = CASUAL_RESPONSES[Math.floor(Math.random() * CASUAL_RESPONSES.length)];
       }
 
-      const typingTime = Math.min(3200, Math.max(1000, reply.length * 38));
+      const typingTime = Math.min(2200, Math.max(700, reply.length * 28));
 
       this.simReplyTimer = setTimeout(() => {
         if (!this.isConnected) return;
         this.events.onTyping(false);
+        this.simHistory.push({ role: "assistant", content: reply });
+
         this.events.onMessage({
           id: Math.random().toString(36).slice(2),
           sender: "stranger",
           text: reply,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         });
+
+        if (shouldSkip) {
+          setTimeout(() => {
+            this.disconnect(false, skipReason);
+          }, 600);
+        }
       }, typingTime);
     }, readPause);
   }
@@ -502,6 +507,8 @@ export class StrangerManager {
     this.cleanupTimers();
     this.currentPartnerId = null;
     this.currentSessionId = null;
+    this.simPersona = null;
+    this.simHistory = [];
   }
 
   public destroy() {
