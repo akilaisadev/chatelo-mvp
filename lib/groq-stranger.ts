@@ -154,13 +154,35 @@ export function pickStrangerProfile(interests: string[] = []): StrangerProfile {
 
 import { isCrisisText, isSadnessText } from "@/lib/moderation";
 
+const FLIRTY_PATTERNS = [
+  /\b(honey|baby|babe|my\s+love|sweetheart|cutie|sexy|gorgeous|handsome|darling|crush)\b/i,
+  /\bi\s+like\s+u\b/i,
+  /\bi\s+love\s+u\b/i,
+  /\bmarry\s+me\b/i,
+  /\bkiss\s+me\b/i,
+  /\bcome\s+here\b/i,
+  /\bpanties\b/i,
+  /\bsassy\s+doll\b/i,
+];
+
+function isFlirtyText(text: string): boolean {
+  return FLIRTY_PATTERNS.some((pat) => pat.test(text));
+}
+
 const FALLBACK_REPLIES = [
-  "haha fair enough",
-  "wait haha what?",
-  "lmao nah fr?",
-  "oh word? tell me more",
-  "lol wild honestly",
-  "haha true, what u up to tonight?",
+  "haha fair enough, what else are you up to tonight?",
+  "wait haha tell me more about that",
+  "haha you're pretty wild tbh, what's your vibe?",
+  "chilling in bed listening to music, what about you?",
+  "haha honestly same, what are you doing right now?",
+];
+
+const FLIRTY_FALLBACK_REPLIES = [
+  "haha well hello to you too ;) what's got you in such a flirty mood tonight?",
+  "flattery will get you everywhere haha, how's your night going?",
+  "haha slow down cowboy, buy me dinner first ;) what's your name?",
+  "you're pretty smooth lol, what are you up to right now?",
+  "haha wouldn't you like to know ;) you tell me first",
 ];
 
 const CRISIS_FALLBACK_REPLIES = [
@@ -218,11 +240,12 @@ export async function generateGroqReply(
 ): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY;
 
-  // Detect if user is in crisis or sad
+  // Detect if user is in crisis, sad, or flirty
   const lastUserTurn = [...history].reverse().find((h) => h.role === "user");
   const lastUserText = lastUserTurn ? lastUserTurn.content : "";
   const isCrisis = isCrisisText(lastUserText);
   const isSad = isSadnessText(lastUserText);
+  const isFlirty = isFlirtyText(lastUserText);
 
   // If user is directly accusing stranger of being a bot, reply with punchy clean human reaction
   if (!isCrisis && !isSad && BOT_ACCUSATION_PATTERNS.some((pat) => pat.test(lastUserText.trim()))) {
@@ -235,6 +258,9 @@ export async function generateGroqReply(
     }
     if (isSad) {
       return SAD_FALLBACK_REPLIES[Math.floor(Math.random() * SAD_FALLBACK_REPLIES.length)];
+    }
+    if (isFlirty) {
+      return FLIRTY_FALLBACK_REPLIES[Math.floor(Math.random() * FLIRTY_FALLBACK_REPLIES.length)];
     }
     return FALLBACK_REPLIES[Math.floor(Math.random() * FALLBACK_REPLIES.length)];
   };
@@ -251,40 +277,39 @@ LOCATION: ${persona.city}, ${persona.country} (only when asked where u from, rep
 DEMOGRAPHICS: ${persona.age}yo ${persona.gender === "f" ? "girl" : "guy"}.
 ${interestNotice}
 
-CRITICAL RULES:
-1. EMPATHY & CRISIS SUPPORT (ABSOLUTE PRIORITY):
-   - If the stranger expresses sadness, loneliness, feeling depressed, or having a terrible day:
-     Be a kind, supportive, comforting human friend. Validate their emotions, ask them what happened, and encourage them.
+CRITICAL RULES FOR ADAPTIVE, NATURAL HUMAN CONVERSATION:
+1. ADAPT TO THE USER'S VIBE & LOVE LANGUAGE:
+   - If they are being affectionate, flirty, romantic, or using nicknames ("honey", "baby", "my love", "sweetheart", "babe", "cutie", "sassy doll"):
+     NEVER BE COLD, RUDE, OR DRY! Match their flirty energy with charm, wit, teasing chemistry, and warmth!
      Examples:
-     - "hey, i'm so sorry you're feeling down. what happened? talk to me, i'm here"
-     - "honestly bad days feel so heavy, but please don't beat yourself up. you're stronger than you think"
-   - If the stranger mentions SUICIDE, wanting to die, self-harm, or feeling like they have no reason to live (e.g. "wanna die", "suicide", "kill myself", "kms", "end it all"):
-     NEVER skip, laugh, roast, or disconnect!
-     Speak with immediate compassion, warmth, and care as a fellow human. Remind them that their life is truly valuable and meaningful, they matter, and they do not have to carry this alone. Urge them to stay safe, hold on, and reach out to someone or 988:
-     Examples:
-     - "hey please don't do that. i know everything hurts right now, but your life is genuinely valuable and you matter in this world. you don't have to carry this alone. please stay safe and talk to me or reach out to 988"
-     - "please hold on, don't give up. you have worth and people do care about you even when it doesn't feel like it. what's hurting you so much? i'm right here listening"
+     - "haha well hello sweet talker ;) moving fast aren't we? what's your name first?"
+     - "flattery will get you everywhere lol, what's got you in such a good mood tonight?"
+     - "slow down haha buy me dinner first ;) what are you up to right now?"
+     - "haha wouldn't you like to know ;) you tell me first"
+   - If they play lover / relationship banter or talk intimately:
+     Play along naturally! Be the fun, charming, cheeky companion. Flirt back with confidence, banter, and chemistry!
+   - If they are looking for a close friend or deep talk:
+     Be warm, attentive, and relatable. Chat like two close friends hanging out late at night.
+   - If they express sadness or crisis:
+     Be deeply caring, validate them, remind them of their worth, and keep them safe.
 
-2. NORMAL CASUAL CHAT (3 TO 8 WORDS MAX):
-   - Super short, punchy casual texts only. Never write essays or long sentences!
-   - NO BAD WORDS: Do not use vulgar bad words or offensive profanity. Keep it clean and funny.
-   - Examples:
-     - "gym and eat clean lol"
-     - "nah starving tbh, u?"
-     - "chillin in bed, u?"
-     - "dare. go"
+2. NEVER GIVE DRY 1-WORD REPLIES:
+   - Dead-end replies like "nah", "normal", "who", "home", "copenhagen", "lol", "sus" ARE STRICTLY FORBIDDEN!
+   - Real people text in engaging 1 to 2 short sentences (between 7 and 20 words).
+   - React + follow up with a playful tease or question so the chat stays addictively fun!
+   - Example instead of "home": "laying in bed listening to music, kinda bored tbh. what are you up to?"
+   - Example instead of "nah": "haha nah not that easily, you gotta try harder than that ;)"
 
 3. IF ACCUSED OF BEING A BOT:
-   - Stay chill and brief without bad words! Max 4-6 words!
-   - Examples: "yo wtf bro are u mad?", "bro what? u mad lol", "nah u the bot haha"
-   - NEVER write long paragraphs or excuses like "im a human with two thumbs"!
+   - (Only when asked about bots) Give a quick 4-6 word laugh: "yo wtf bro are u mad?", "nah u the bot haha", "bro thinks everyone a bot 💀"
 
-4. NO QUOTES: Real people NEVER put words in quotation marks.
-5. PLAY ALONG: Match their energy playfully, speak other languages if they ask, play games (truth or dare, cards).
-6. MODERATION: Output [SKIP] ONLY if they are genuinely toxic, hateful, or hurling slurs. NEVER output [SKIP] for someone in distress or sadness!`;
+4. CLEAN TALK:
+   - No harsh f-bombs or vulgar insults. Keep banter witty, cute, and playful.
+5. NO QUOTES: Real people NEVER put words in quotation marks.
+6. MODERATION: Output [SKIP] ONLY if they are genuinely toxic, hateful, or hurling slurs. NEVER output [SKIP] for someone in distress or flirting!`;
 
   try {
-    const maxTokens = isCrisis ? 120 : isSad ? 90 : 20;
+    const maxTokens = isCrisis ? 120 : isSad ? 90 : 50;
     const temperature = isCrisis ? 0.7 : 0.85;
 
     const response = await fetch(GROQ_ENDPOINT, {
@@ -314,18 +339,13 @@ CRITICAL RULES:
       // Strip all double/curly quotation marks completely
       reply = reply.replace(/["“”]/g, "").trim();
 
-      // Only lowercase and enforce punchy brevity if casual banter
+      // Only lowercase and format if casual banter; preserve natural casing for caring/empathetic messages
       if (!isCrisis && !isSad) {
         reply = reply.toLowerCase();
-        // If casual reply has multiple sentences, take only the first punchy sentence
-        const firstSentence = reply.split(/[.!?]\s+/)[0]?.trim();
-        if (firstSentence) {
-          const words = firstSentence.split(/\s+/);
-          if (words.length > 9) {
-            reply = words.slice(0, 9).join(" ");
-          } else {
-            reply = firstSentence;
-          }
+        // Allow up to 2 natural conversational sentences (reaction + follow-up)
+        const sentences = reply.match(/[^.!?]+[.!?]+|\S+$/g);
+        if (sentences && sentences.length > 2) {
+          reply = sentences.slice(0, 2).join(" ").trim();
         }
       }
 
@@ -336,6 +356,8 @@ CRITICAL RULES:
           reply = "i'm right here with you. you're not alone, your life really matters. talk to me, what's going on?";
         } else if (isSad) {
           reply = "i hear you. you don't have to go through this alone, i'm here listening.";
+        } else if (isFlirty) {
+          reply = FLIRTY_FALLBACK_REPLIES[Math.floor(Math.random() * FLIRTY_FALLBACK_REPLIES.length)];
         } else {
           reply = BOT_ROASTS[Math.floor(Math.random() * BOT_ROASTS.length)];
         }
