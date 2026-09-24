@@ -27,6 +27,7 @@ export function AnonymousChat() {
   const stopConfirmTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Initialize the stranger engine once.
   useEffect(() => {
@@ -145,6 +146,11 @@ export function AnonymousChat() {
     const text = inputText.trim();
     if (!text) return;
 
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+
     setMessages((prev) => [
       ...prev,
       {
@@ -164,6 +170,11 @@ export function AnonymousChat() {
   };
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // If composing text via IME, spell-check, or Mac predictive text autocomplete, don't send!
+    if (e.nativeEvent.isComposing || e.keyCode === 229) {
+      return;
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -173,7 +184,15 @@ export function AnonymousChat() {
   const handleInputChange = (value: string) => {
     setInputText(value);
     if (chatStatus === "connected") {
-      managerRef.current?.sendTyping(value.trim().length > 0);
+      if (!typingTimeoutRef.current) {
+        managerRef.current?.sendTyping(true);
+      } else {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      typingTimeoutRef.current = setTimeout(() => {
+        managerRef.current?.sendTyping(false);
+        typingTimeoutRef.current = null;
+      }, 1500);
     }
   };
 
