@@ -142,3 +142,8 @@ CRITICAL CONVERSATIONAL CONTINUITY & CONTEXT RULES:
 
   return FALLBACK_REPLIES[Math.floor(Math.random() * FALLBACK_REPLIES.length)];
 }
+
+export async function generateGroqOpener(interests: string[] = []): Promise<string> {
+  const profile = pickStrangerProfile(interests);
+  return profile.opener;
+}
