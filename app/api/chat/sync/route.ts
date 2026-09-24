@@ -12,27 +12,47 @@ import {
   isCrisisText,
   isSadnessText,
 } from "@/lib/moderation";
+import { packPayload, unpackPayload } from "@/lib/secure-packet";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+interface SyncRequest {
+  a: "init" | "msg";
+  i?: string[]; // interests
+  h?: ChatTurn[]; // history
+  s?: StrangerProfile; // persona state
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { action, interests = [] } = body;
+    const rawBody = await request.json();
+    const packet = typeof rawBody.p === "string" ? rawBody.p : "";
+    const payload = unpackPayload<SyncRequest>(packet);
 
-    if (action === "profile") {
+    if (!payload || !payload.a) {
+      return NextResponse.json(
+        { p: packPayload({ error: "Invalid sync request" }) },
+        { status: 400 }
+      );
+    }
+
+    const interests = Array.isArray(payload.i) ? payload.i : [];
+
+    // 'init': Initialize session persona & opener
+    if (payload.a === "init") {
       const persona = pickStrangerProfile(interests);
-      return NextResponse.json({ ok: true, persona });
+      const resData = {
+        ok: true,
+        opener: persona.opener,
+        persona,
+      };
+      return NextResponse.json({ p: packPayload(resData) });
     }
 
-    if (action === "opener") {
-      const persona: StrangerProfile = body.persona || pickStrangerProfile(interests);
-      return NextResponse.json({ ok: true, opener: persona.opener, persona });
-    }
-
-    if (action === "reply") {
-      const rawHistory = Array.isArray(body.history) ? body.history : [];
+    // 'msg': Process incoming peer conversation turn
+    if (payload.a === "msg") {
+      const rawHistory = Array.isArray(payload.h) ? payload.h : [];
       const history: ChatTurn[] = rawHistory
         .map((item: any) => ({
           role:
@@ -42,18 +62,20 @@ export async function POST(request: NextRequest) {
           content: String(item.content ?? item.text ?? "").trim(),
         }))
         .filter((item: { role: "user" | "assistant"; content: string }) => item.content.length > 0);
-      const persona: StrangerProfile = body.persona || pickStrangerProfile(interests);
 
-      // Check if user's latest message was toxic / aggressive / demands skip
+      const persona: StrangerProfile = payload.s || pickStrangerProfile(interests);
+
+      // Check if user's latest message was toxic / aggressive
       const lastUserMsg = [...history].reverse().find((h) => h.role === "user");
       if (lastUserMsg && isAggressiveOrRude(lastUserMsg.content)) {
         const partingLine = getRandomSkipLine();
-        return NextResponse.json({
+        const resData = {
           ok: true,
           reply: partingLine,
           skip: true,
           reason: "Stranger has skipped the chat.",
-        });
+        };
+        return NextResponse.json({ p: packPayload(resData) });
       }
 
       const isCrisisOrSad = Boolean(
@@ -73,16 +95,24 @@ export async function POST(request: NextRequest) {
         cleanReply = isCrisisOrSad ? "i'm right here with you. talk to me, what happened?" : "bye";
       }
 
-      return NextResponse.json({
+      const resData = {
         ok: true,
         reply: cleanReply,
         skip: isSkip,
         reason: isSkip ? "Stranger has skipped the chat." : undefined,
-      });
+      };
+
+      return NextResponse.json({ p: packPayload(resData) });
     }
 
-    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+    return NextResponse.json(
+      { p: packPayload({ error: "Unknown sync action" }) },
+      { status: 400 }
+    );
   } catch {
-    return NextResponse.json({ error: "Failed to process chat" }, { status: 500 });
+    return NextResponse.json(
+      { p: packPayload({ error: "Sync failed" }) },
+      { status: 500 }
+    );
   }
 }

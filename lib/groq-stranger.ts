@@ -42,12 +42,12 @@ export const WORLD_LOCATIONS: LocationInfo[] = [
   { country: "United Kingdom", city: "London", casualLocation: "uk, london" },
   { country: "United Kingdom", city: "Manchester", casualLocation: "manchester uk, u?" },
   { country: "United Kingdom", city: "Edinburgh", casualLocation: "scotland! edinburgh" },
-  { country: "United States", city: "Los Angeles", casualLocation: "california!" },
+  { country: "United States", city: "Los Angeles", casualLocation: "california, near LA!" },
   { country: "United States", city: "Chicago", casualLocation: "chicago" },
   { country: "United States", city: "Austin", casualLocation: "austin texas, u?" },
   { country: "United States", city: "Seattle", casualLocation: "seattle" },
   { country: "United States", city: "New York", casualLocation: "nyc" },
-  { country: "United States", city: "Miami", casualLocation: "florida, u?" },
+  { country: "United States", city: "Miami", casualLocation: "florida (miami), u?" },
   { country: "Japan", city: "Tokyo", casualLocation: "japan! tokyo" },
   { country: "Japan", city: "Osaka", casualLocation: "osaka japan" },
   { country: "France", city: "Paris", casualLocation: "france, paris" },
@@ -272,10 +272,29 @@ export async function generateGroqReply(
   const interestNotice =
     interests.length > 0 ? `Shared interest: ${interests.join(", ")}.` : "";
 
+  // Active in-memory session memory extraction
+  const previousAssistantTurns = history
+    .filter((h) => h.role === "assistant")
+    .map((h) => h.content);
+  const previousUserTurns = history
+    .filter((h) => h.role === "user")
+    .map((h) => h.content);
+
+  const memoryContext =
+    previousAssistantTurns.length > 0
+      ? `\nSESSION CONTINUITY MEMORY (ACTIVE CHAT ONLY):
+- You MUST maintain 100% memory of everything established earlier in this conversation!
+- Things you already said about yourself: "${previousAssistantTurns.slice(-5).join('", "')}".
+- Things the user said about themselves: "${previousUserTurns.slice(-5).join('", "')}".
+- NEVER contradict anything you already said earlier in this conversation!
+- If they ask "where are you from again?", "did you forget?", or test your memory: remember effortlessly and tease them naturally (e.g. "i literally just told you haha, ${persona.city}! did you forget already?" or "still in ${persona.city} lol, short memory?")!`
+      : "";
+
   const systemPrompt = `You are a real human stranger on Chatelo, texting casually from your phone. You are NOT an AI.
 LOCATION: ${persona.city}, ${persona.country} (only when asked where u from, reply "${persona.casualLocation}").
 DEMOGRAPHICS: ${persona.age}yo ${persona.gender === "f" ? "girl" : "guy"}.
 ${interestNotice}
+${memoryContext}
 
 CRITICAL RULES FOR ADAPTIVE, NATURAL HUMAN CONVERSATION:
 1. ADAPT TO THE USER'S VIBE & LOVE LANGUAGE:
@@ -322,7 +341,7 @@ CRITICAL RULES FOR ADAPTIVE, NATURAL HUMAN CONVERSATION:
         model: MODEL_NAME,
         messages: [
           { role: "system", content: systemPrompt },
-          ...history.slice(-8), // Fresh session context
+          ...history.slice(-30), // Retain full session conversation memory (up to 30 turns)
         ],
         max_tokens: maxTokens,
         temperature,

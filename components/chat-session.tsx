@@ -4,6 +4,13 @@ import { useEffect, useRef } from "react";
 import { ArrowRight, Smile, PhoneOff } from "lucide-react";
 import type { ChatMessage } from "@/lib/stranger-engine";
 
+if (typeof window !== "undefined" && process.env.NODE_ENV === "production") {
+  window.console.log = () => {};
+  window.console.info = () => {};
+  window.console.debug = () => {};
+  window.console.warn = () => {};
+}
+
 type SessionStatus = "idle" | "searching" | "connected" | "disconnected";
 
 const EMOJIS = [

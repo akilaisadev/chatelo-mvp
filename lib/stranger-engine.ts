@@ -1,4 +1,5 @@
 import type { StrangerProfile, ChatTurn } from "@/lib/groq-stranger";
+import { packPayload, unpackPayload } from "@/lib/secure-packet";
 
 export interface ChatMessage {
   id: string;
@@ -294,21 +295,21 @@ export class StrangerManager {
     this.mode = "simulation";
     this.events.onStatusChange("connected");
 
-    // Fetch initial stranger persona and opener from Groq
+    // Fetch initial stranger persona and opener via encrypted sync
     let opener = "yo";
     try {
-      const res = await fetch("/api/chat/groq", {
+      const res = await fetch("/api/chat/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "opener",
-          interests: this.activeInterests,
+          p: packPayload({ a: "init", i: this.activeInterests }),
         }),
       });
       if (res.ok) {
-        const data = await res.json();
-        if (data.persona) this.simPersona = data.persona;
-        if (data.opener) opener = data.opener;
+        const raw = await res.json();
+        const data = unpackPayload<{ ok: boolean; persona?: StrangerProfile; opener?: string }>(raw?.p);
+        if (data?.persona) this.simPersona = data.persona;
+        if (data?.opener) opener = data.opener;
       }
     } catch {
       // offline fallback
@@ -419,22 +420,27 @@ export class StrangerManager {
       let skipReason = "Stranger has skipped the chat.";
 
       try {
-        const res = await fetch("/api/chat/groq", {
+        const res = await fetch("/api/chat/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            action: "reply",
-            history: this.simHistory,
-            persona: this.simPersona,
-            interests: this.activeInterests,
+            p: packPayload({
+              a: "msg",
+              h: this.simHistory,
+              s: this.simPersona,
+              i: this.activeInterests,
+            }),
           }),
         });
 
         if (res.ok) {
-          const data = await res.json();
-          reply = data.reply || "";
-          shouldSkip = Boolean(data.skip);
-          if (data.reason) skipReason = data.reason;
+          const raw = await res.json();
+          const data = unpackPayload<{ ok: boolean; reply?: string; skip?: boolean; reason?: string }>(raw?.p);
+          if (data) {
+            reply = data.reply || "";
+            shouldSkip = Boolean(data.skip);
+            if (data.reason) skipReason = data.reason;
+          }
         }
       } catch {
         // Fallback if offline
