@@ -258,7 +258,7 @@ class ServerChatHub {
       // Generate Groq reply asynchronously with locked persona and full session history
       (async () => {
         const persona = session.persona || pickStrangerProfile(session.mutualInterests);
-        const reply = await generateGroqReply(
+        const rawReply = await generateGroqReply(
           session.aiHistory || [],
           persona,
           session.mutualInterests
@@ -266,20 +266,30 @@ class ServerChatHub {
 
         if (this.peerSessionMap.get(peerId) !== sessionId) return;
 
-        const typingDuration = Math.min(2600, Math.max(800, reply.length * 30));
+        const isSkipTriggered = rawReply.toLowerCase().includes("[skip]");
+        const cleanReply = rawReply.replace(/\[skip\]/gi, "").trim() || "bye";
+
+        const typingDuration = Math.min(2400, Math.max(700, cleanReply.length * 28));
         setTimeout(() => {
           if (this.peerSessionMap.get(peerId) !== sessionId) return;
 
           this.sendToPeer(peerId, { type: "TYPING", isTyping: false });
-          session.aiHistory?.push({ role: "assistant", content: reply });
+          session.aiHistory?.push({ role: "assistant", content: cleanReply });
 
           this.sendToPeer(peerId, {
             type: "MESSAGE",
             sessionId,
             senderId: session.peer2Id,
-            text: reply,
+            text: cleanReply,
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           });
+
+          // Automatically skip and end session if user is aggressive/toxic
+          if (isSkipTriggered) {
+            setTimeout(() => {
+              this.endSession(peerId, "Stranger has skipped the chat.");
+            }, 700);
+          }
         }, typingDuration);
       })();
 
