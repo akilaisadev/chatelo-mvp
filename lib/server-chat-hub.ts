@@ -2,6 +2,8 @@
 // ZERO persistence: No database, no logs, no chat storage.
 // All messages and sessions exist purely in volatile memory during transit.
 
+import { generateGroqReply, generateGroqOpener } from "./groq-stranger";
+
 export interface PeerWaiting {
   peerId: string;
   interests: string[];
@@ -13,6 +15,8 @@ export interface ActiveSession {
   peer1Id: string;
   peer2Id: string;
   mutualInterests: string[];
+  isAiSession: boolean;
+  aiHistory?: { role: "user" | "assistant"; content: string }[];
   createdAt: number;
 }
 
@@ -25,6 +29,7 @@ class ServerChatHub {
   private waitingQueue = new Map<string, PeerWaiting>();
   private activeSessions = new Map<string, ActiveSession>();
   private peerSessionMap = new Map<string, string>(); // peerId -> sessionId
+  private fallbackTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private pingInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
@@ -61,7 +66,6 @@ class ServerChatHub {
       return false;
     }
 
-    // Clean any prior session or queue entry
     this.leaveQueue(peerId);
     this.endSession(peerId, "New search started.");
 
@@ -69,11 +73,10 @@ class ServerChatHub {
       .map((i) => i.trim().toLowerCase())
       .filter(Boolean);
 
-    // Look for a match in queue
     let matchedPartner: PeerWaiting | null = null;
     let mutualInterests: string[] = [];
 
-    // 1. Try finding someone with mutual interests
+    // 1. Try finding human with mutual interests
     if (normalizedInterests.length > 0) {
       for (const candidate of this.waitingQueue.values()) {
         if (candidate.peerId === peerId) continue;
@@ -87,12 +90,11 @@ class ServerChatHub {
       }
     }
 
-    // 2. If no interest match, match with whoever has been waiting longest
+    // 2. If no interest match, match with waiting human
     if (!matchedPartner) {
       for (const candidate of this.waitingQueue.values()) {
         if (candidate.peerId === peerId) continue;
         matchedPartner = candidate;
-        // Check if by any chance they share interests
         mutualInterests = normalizedInterests.filter((i) =>
           candidate.interests.map((x) => x.toLowerCase()).includes(i)
         );
@@ -101,7 +103,7 @@ class ServerChatHub {
     }
 
     if (matchedPartner) {
-      // Remove partner from queue
+      this.clearFallbackTimer(matchedPartner.peerId);
       this.waitingQueue.delete(matchedPartner.peerId);
 
       const sessionId = `sess_${Math.random().toString(36).slice(2, 10)}_${Date.now()}`;
@@ -110,6 +112,7 @@ class ServerChatHub {
         peer1Id: peerId,
         peer2Id: matchedPartner.peerId,
         mutualInterests,
+        isAiSession: false,
         createdAt: Date.now(),
       };
 
@@ -117,7 +120,6 @@ class ServerChatHub {
       this.peerSessionMap.set(peerId, sessionId);
       this.peerSessionMap.set(matchedPartner.peerId, sessionId);
 
-      // Notify both peers
       this.sendToPeer(peerId, {
         type: "MATCH_CONNECTED",
         sessionId,
@@ -135,7 +137,7 @@ class ServerChatHub {
       return true;
     }
 
-    // No immediate match: add to waiting queue
+    // Add to waiting queue
     this.waitingQueue.set(peerId, {
       peerId,
       interests: normalizedInterests,
@@ -147,13 +149,85 @@ class ServerChatHub {
       queueCount: this.waitingQueue.size,
     });
 
+    // If no human arrives in 3.5 seconds, connect with Groq AI Stranger
+    const timer = setTimeout(() => {
+      this.connectAiStranger(peerId, normalizedInterests);
+    }, 3500);
+
+    this.fallbackTimers.set(peerId, timer);
     return false;
   }
 
+  private async connectAiStranger(peerId: string, interests: string[]) {
+    if (!this.waitingQueue.has(peerId) || !this.controllers.has(peerId)) {
+      return;
+    }
+
+    this.waitingQueue.delete(peerId);
+    this.fallbackTimers.delete(peerId);
+
+    const sessionId = `sess_ai_${Math.random().toString(36).slice(2, 10)}_${Date.now()}`;
+    const aiPartnerId = `stranger_${Math.random().toString(36).slice(2, 8)}`;
+
+    const session: ActiveSession = {
+      sessionId,
+      peer1Id: peerId,
+      peer2Id: aiPartnerId,
+      mutualInterests: interests,
+      isAiSession: true,
+      aiHistory: [],
+      createdAt: Date.now(),
+    };
+
+    this.activeSessions.set(sessionId, session);
+    this.peerSessionMap.set(peerId, sessionId);
+
+    this.sendToPeer(peerId, {
+      type: "MATCH_CONNECTED",
+      sessionId,
+      partnerId: aiPartnerId,
+      mutualInterests: interests,
+    });
+
+    // Opening greeting from AI stranger
+    const opener = await generateGroqOpener(interests);
+
+    // Natural typing delay
+    setTimeout(() => {
+      if (this.peerSessionMap.get(peerId) !== sessionId) return;
+      this.sendToPeer(peerId, { type: "TYPING", isTyping: true });
+
+      const typingDuration = Math.min(2200, Math.max(900, opener.length * 35));
+      setTimeout(() => {
+        if (this.peerSessionMap.get(peerId) !== sessionId) return;
+        this.sendToPeer(peerId, { type: "TYPING", isTyping: false });
+
+        session.aiHistory?.push({ role: "assistant", content: opener });
+
+        this.sendToPeer(peerId, {
+          type: "MESSAGE",
+          sessionId,
+          senderId: aiPartnerId,
+          text: opener,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        });
+      }, typingDuration);
+    }, 900);
+  }
+
   public leaveQueue(peerId: string) {
+    this.clearFallbackTimer(peerId);
     if (this.waitingQueue.has(peerId)) {
       this.waitingQueue.delete(peerId);
       this.sendToPeer(peerId, { type: "QUEUE_LEFT" });
+    }
+  }
+
+  private clearFallbackTimer(peerId: string) {
+    const timer = this.fallbackTimers.get(peerId);
+    if (timer) {
+      clearTimeout(timer);
+      this.fallbackTimers.delete(peerId);
     }
   }
 
@@ -164,14 +238,51 @@ class ServerChatHub {
     const session = this.activeSessions.get(sessionId);
     if (!session) return false;
 
-    const partnerId = session.peer1Id === peerId ? session.peer2Id : session.peer1Id;
+    const trimmed = text.trim();
+    if (!trimmed) return false;
 
-    // Transmit directly to partner. NO STORAGE.
+    if (session.isAiSession) {
+      session.aiHistory?.push({ role: "user", content: trimmed });
+
+      // Immediate typing indicator
+      this.sendToPeer(peerId, { type: "TYPING", isTyping: true });
+
+      // Generate Groq reply asynchronously
+      (async () => {
+        const reply = await generateGroqReply(
+          session.aiHistory || [],
+          session.mutualInterests
+        );
+
+        if (this.peerSessionMap.get(peerId) !== sessionId) return;
+
+        const typingDuration = Math.min(2600, Math.max(800, reply.length * 30));
+        setTimeout(() => {
+          if (this.peerSessionMap.get(peerId) !== sessionId) return;
+
+          this.sendToPeer(peerId, { type: "TYPING", isTyping: false });
+          session.aiHistory?.push({ role: "assistant", content: reply });
+
+          this.sendToPeer(peerId, {
+            type: "MESSAGE",
+            sessionId,
+            senderId: session.peer2Id,
+            text: reply,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          });
+        }, typingDuration);
+      })();
+
+      return true;
+    }
+
+    // Human to human: relay directly with zero storage
+    const partnerId = session.peer1Id === peerId ? session.peer2Id : session.peer1Id;
     return this.sendToPeer(partnerId, {
       type: "MESSAGE",
       sessionId,
       senderId: peerId,
-      text: text.trim(),
+      text: trimmed,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     });
   }
@@ -181,10 +292,9 @@ class ServerChatHub {
     if (!sessionId) return false;
 
     const session = this.activeSessions.get(sessionId);
-    if (!session) return false;
+    if (!session || session.isAiSession) return false;
 
     const partnerId = session.peer1Id === peerId ? session.peer2Id : session.peer1Id;
-
     return this.sendToPeer(partnerId, {
       type: "TYPING",
       sessionId,
@@ -194,20 +304,23 @@ class ServerChatHub {
   }
 
   public endSession(peerId: string, reason: string = "Stranger has disconnected.") {
+    this.clearFallbackTimer(peerId);
     const sessionId = this.peerSessionMap.get(peerId);
     if (!sessionId) return;
 
     const session = this.activeSessions.get(sessionId);
     if (session) {
-      const partnerId = session.peer1Id === peerId ? session.peer2Id : session.peer1Id;
-      this.sendToPeer(partnerId, {
-        type: "SESSION_ENDED",
-        sessionId,
-        reason,
-      });
+      if (!session.isAiSession) {
+        const partnerId = session.peer1Id === peerId ? session.peer2Id : session.peer1Id;
+        this.sendToPeer(partnerId, {
+          type: "SESSION_ENDED",
+          sessionId,
+          reason,
+        });
+        this.peerSessionMap.delete(partnerId);
+      }
 
-      this.peerSessionMap.delete(session.peer1Id);
-      this.peerSessionMap.delete(session.peer2Id);
+      this.peerSessionMap.delete(peerId);
       this.activeSessions.delete(sessionId);
     }
   }
@@ -231,6 +344,5 @@ class ServerChatHub {
   }
 }
 
-// Preserve singleton across hot reloads in Next.js development
 const globalForHub = globalThis as unknown as { __chatelo_hub__?: ServerChatHub };
 export const chatHub = globalForHub.__chatelo_hub__ ?? (globalForHub.__chatelo_hub__ = new ServerChatHub());
