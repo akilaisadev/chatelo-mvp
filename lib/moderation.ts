@@ -15,7 +15,7 @@ const TOXIC_PATTERNS = [
   // Violent / extreme hostile attacks & profanity
   /\bkys\b/i,
   /\bkill\s+your\s*self\b/i,
-  /\bdie\s+(in\s+a\s+fire|bitch|hoe|fucker)?\b/i,
+  /\b(go\s+die|hope\s+you\s+die|die\s+(in\s+a\s+fire|bitch|hoe|fucker))\b/i,
   /\bshut\s+the\s+fuck\s+up\b/i,
   /\bstfu\b/i,
   /\bfuck\s+(you|u|ur|your)\s*(mom|mother|bitch|ass|face)?\b/i,
@@ -32,6 +32,43 @@ const TOXIC_PATTERNS = [
   /\b(skip\s+me|skip\s+u|go\s+and\s+skip|please\s+skip|just\s+skip\s+me|skip\s+then)\b/i,
 ];
 
+// Crisis and suicidal ideation patterns: NEVER treated as hostile attacks
+const CRISIS_PATTERNS = [
+  /\b(wanna|want\s+to|going\s+to|planning\s+to|gonna)\s+(die|kill\s+myself|end\s+it\s+all|end\s+my\s+life|hang\s+myself|overdose)\b/i,
+  /\bkms\b/i,
+  /\b(kill|harm|hurt)\s+myself\b/i,
+  /\bsuicid(e|al)\b/i,
+  /\bno\s+reason\s+to\s+live\b/i,
+  /\bdon'?t\s+wanna\s+live(\s+anymore)?\b/i,
+  /\bdont\s+wanna\s+live(\s+anymore)?\b/i,
+  /\bfeel\s+like\s+(dying|giving\s+up|ending\s+it)\b/i,
+  /\bi\s+hate\s+my\s+life\b/i,
+  /\btired\s+of\s+living\b/i,
+  /\bi\s+can'?t\s+take\s+this\s+anymore\b/i,
+  /\bno\s+point\s+in\s+living\b/i,
+  /\bbetter\s+off\s+dead\b/i,
+];
+
+// General emotional sadness, loneliness, and depression patterns
+const SADNESS_PATTERNS = [
+  /\b(feeling|feel|im|i'm|so|really|super)\s+(sad|depressed|down|lonely|hopeless|worthless|broken|empty|unloved)\b/i,
+  /\b(crying|bursting\s+into\s+tears|so\s+sad)\b/i,
+  /\bi\s+hate\s+myself\b/i,
+  /\beveryone\s+hates\s+me\b/i,
+  /\bi\s+have\s+no\s+friends\b/i,
+  /\blost\s+everyone\b/i,
+  /\bhurts?\s+so\s+much\b/i,
+  /\bheartbroken\b/i,
+];
+
+export function isCrisisText(text: string): boolean {
+  return CRISIS_PATTERNS.some((pat) => pat.test(text));
+}
+
+export function isSadnessText(text: string): boolean {
+  return SADNESS_PATTERNS.some((pat) => pat.test(text));
+}
+
 // Parting lines the stranger says right before disconnecting
 const SKIP_PARTING_LINES = [
   "yeah nah, bye",
@@ -45,6 +82,9 @@ const SKIP_PARTING_LINES = [
 export function isAggressiveOrRude(text: string): boolean {
   const normalized = text.trim();
   if (!normalized) return false;
+
+  // Never flag someone in distress or crisis as aggressive!
+  if (isCrisisText(normalized)) return false;
 
   return TOXIC_PATTERNS.some((pattern) => pattern.test(normalized));
 }

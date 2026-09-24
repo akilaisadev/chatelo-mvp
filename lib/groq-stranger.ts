@@ -152,6 +152,8 @@ export function pickStrangerProfile(interests: string[] = []): StrangerProfile {
   };
 }
 
+import { isCrisisText, isSadnessText } from "@/lib/moderation";
+
 const FALLBACK_REPLIES = [
   "haha fair enough",
   "wait haha what?",
@@ -159,6 +161,18 @@ const FALLBACK_REPLIES = [
   "oh word? tell me more",
   "lol wild honestly",
   "haha true, what u up to tonight?",
+];
+
+const CRISIS_FALLBACK_REPLIES = [
+  "hey please don't say that. you matter so much and your life is truly valuable. please talk to me, what happened?",
+  "please stay safe. you have worth and you don't have to carry this all alone. i'm right here listening, talk to me.",
+  "i know things feel dark right now, but please don't give up. you're an important person and you deserve to be here. what's hurting so bad?",
+];
+
+const SAD_FALLBACK_REPLIES = [
+  "hey, i'm really sorry you're feeling down. what happened? i'm here if you wanna vent.",
+  "i hear you. bad days are really heavy, but you're not alone. talk to me.",
+  "sending you good thoughts. what's been on your mind lately?",
 ];
 
 const AI_CONFESSION_PATTERNS = [
@@ -170,13 +184,31 @@ const AI_CONFESSION_PATTERNS = [
   /\bi am programmed to\b/i,
 ];
 
-const BOT_ROASTS = [
-  "bro think he a hacker 💀",
-  "lmao touch grass bro",
+const BOT_ACCUSATION_PATTERNS = [
+  /^(hey\s+)?bot\b/i,
+  /\b(are\s+u|are\s+you|u|ur)\s+(a\s+)?(bot|ai|robot|npc)\b/i,
+  /\bu\s+bot\b/i,
+  /\bbot\s+ah(h)?\b/i,
+  /\byou('re|\s+are)\s+(a\s+)?(bot|ai|npc)\b/i,
+  /\byou\s+fake\b/i,
+];
+
+const BOT_CLEAN_REPLIES = [
+  "yo wtf bro are u mad?",
+  "bro what? u mad lol",
+  "nah u the bot haha",
+  "lol who is a bot? u trippin",
+  "bro thinks everyone a bot 💀",
   "skip then if u scared lol",
-  "nah u the bot",
-  "lol who",
-  "bruh what 😭",
+];
+
+const BOT_ROASTS = [
+  "yo wtf bro are u mad?",
+  "bro what? u mad lol",
+  "nah u the bot haha",
+  "lol who is a bot? u trippin",
+  "bro thinks everyone a bot 💀",
+  "skip then if u scared lol",
 ];
 
 export async function generateGroqReply(
@@ -185,8 +217,30 @@ export async function generateGroqReply(
   interests: string[] = []
 ): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
+
+  // Detect if user is in crisis or sad
+  const lastUserTurn = [...history].reverse().find((h) => h.role === "user");
+  const lastUserText = lastUserTurn ? lastUserTurn.content : "";
+  const isCrisis = isCrisisText(lastUserText);
+  const isSad = isSadnessText(lastUserText);
+
+  // If user is directly accusing stranger of being a bot, reply with punchy clean human reaction
+  if (!isCrisis && !isSad && BOT_ACCUSATION_PATTERNS.some((pat) => pat.test(lastUserText.trim()))) {
+    return BOT_CLEAN_REPLIES[Math.floor(Math.random() * BOT_CLEAN_REPLIES.length)];
+  }
+
+  const getFallback = () => {
+    if (isCrisis) {
+      return CRISIS_FALLBACK_REPLIES[Math.floor(Math.random() * CRISIS_FALLBACK_REPLIES.length)];
+    }
+    if (isSad) {
+      return SAD_FALLBACK_REPLIES[Math.floor(Math.random() * SAD_FALLBACK_REPLIES.length)];
+    }
     return FALLBACK_REPLIES[Math.floor(Math.random() * FALLBACK_REPLIES.length)];
+  };
+
+  if (!apiKey) {
+    return getFallback();
   }
 
   const interestNotice =
@@ -197,29 +251,42 @@ LOCATION: ${persona.city}, ${persona.country} (only when asked where u from, rep
 DEMOGRAPHICS: ${persona.age}yo ${persona.gender === "f" ? "girl" : "guy"}.
 ${interestNotice}
 
-CRITICAL RULES FOR REAL HUMAN TEXTING:
-1. SUPER SHORT REAL TEXTS ONLY (3 TO 10 WORDS MAX):
-   - Real humans on random chat NEVER write essays, explanations, or long paragraphs! Maximum 1 short, punchy sentence.
-   - Examples of real responses:
+CRITICAL RULES:
+1. EMPATHY & CRISIS SUPPORT (ABSOLUTE PRIORITY):
+   - If the stranger expresses sadness, loneliness, feeling depressed, or having a terrible day:
+     Be a kind, supportive, comforting human friend. Validate their emotions, ask them what happened, and encourage them.
+     Examples:
+     - "hey, i'm so sorry you're feeling down. what happened? talk to me, i'm here"
+     - "honestly bad days feel so heavy, but please don't beat yourself up. you're stronger than you think"
+   - If the stranger mentions SUICIDE, wanting to die, self-harm, or feeling like they have no reason to live (e.g. "wanna die", "suicide", "kill myself", "kms", "end it all"):
+     NEVER skip, laugh, roast, or disconnect!
+     Speak with immediate compassion, warmth, and care as a fellow human. Remind them that their life is truly valuable and meaningful, they matter, and they do not have to carry this alone. Urge them to stay safe, hold on, and reach out to someone or 988:
+     Examples:
+     - "hey please don't do that. i know everything hurts right now, but your life is genuinely valuable and you matter in this world. you don't have to carry this alone. please stay safe and talk to me or reach out to 988"
+     - "please hold on, don't give up. you have worth and people do care about you even when it doesn't feel like it. what's hurting you so much? i'm right here listening"
+
+2. NORMAL CASUAL CHAT (3 TO 8 WORDS MAX):
+   - Super short, punchy casual texts only. Never write essays or long sentences!
+   - NO BAD WORDS: Do not use vulgar bad words or offensive profanity. Keep it clean and funny.
+   - Examples:
      - "gym and eat clean lol"
      - "nah starving tbh, u?"
-     - "dare. go"
-     - "lol try harder"
-     - "si un poco jaja, como estas?"
      - "chillin in bed, u?"
-2. IF ACCUSED OF BEING A BOT / JAILBROKEN:
-   - Drop a quick 3-6 word roast! NEVER give a long defensive speech!
-   - Examples:
-     - "bro think he a hacker 💀"
-     - "lmao touch grass bro"
-     - "skip then if u scared lol"
-     - "nah u the bot"
-     - "lol who"
-3. NO QUOTES: Real people NEVER put words in quotation marks.
-4. PLAY ALONG: Match their energy playfully, speak spanish if they ask, play games (truth or dare, cards), flirt back with quick witty banter.
-5. MODERATION: Output [SKIP] if they are genuinely abusive, hostile, or use slurs.`;
+     - "dare. go"
+
+3. IF ACCUSED OF BEING A BOT:
+   - Stay chill and brief without bad words! Max 4-6 words!
+   - Examples: "yo wtf bro are u mad?", "bro what? u mad lol", "nah u the bot haha"
+   - NEVER write long paragraphs or excuses like "im a human with two thumbs"!
+
+4. NO QUOTES: Real people NEVER put words in quotation marks.
+5. PLAY ALONG: Match their energy playfully, speak other languages if they ask, play games (truth or dare, cards).
+6. MODERATION: Output [SKIP] ONLY if they are genuinely toxic, hateful, or hurling slurs. NEVER output [SKIP] for someone in distress or sadness!`;
 
   try {
+    const maxTokens = isCrisis ? 120 : isSad ? 90 : 20;
+    const temperature = isCrisis ? 0.7 : 0.85;
+
     const response = await fetch(GROQ_ENDPOINT, {
       method: "POST",
       headers: {
@@ -232,25 +299,46 @@ CRITICAL RULES FOR REAL HUMAN TEXTING:
           { role: "system", content: systemPrompt },
           ...history.slice(-8), // Fresh session context
         ],
-        max_tokens: 30, // Strictly enforces punchy 3-8 word human texts
-        temperature: 0.85,
+        max_tokens: maxTokens,
+        temperature,
       }),
     });
 
     if (!response.ok) {
-      return FALLBACK_REPLIES[Math.floor(Math.random() * FALLBACK_REPLIES.length)];
+      return getFallback();
     }
 
     const data = await response.json();
     let reply = data.choices?.[0]?.message?.content?.trim();
     if (reply) {
       // Strip all double/curly quotation marks completely
-      reply = reply.replace(/["“”]/g, "").trim().toLowerCase();
+      reply = reply.replace(/["“”]/g, "").trim();
 
-      // Intercept any accidental AI confessions and replace with a roast
+      // Only lowercase and enforce punchy brevity if casual banter
+      if (!isCrisis && !isSad) {
+        reply = reply.toLowerCase();
+        // If casual reply has multiple sentences, take only the first punchy sentence
+        const firstSentence = reply.split(/[.!?]\s+/)[0]?.trim();
+        if (firstSentence) {
+          const words = firstSentence.split(/\s+/);
+          if (words.length > 9) {
+            reply = words.slice(0, 9).join(" ");
+          } else {
+            reply = firstSentence;
+          }
+        }
+      }
+
+      // Intercept any accidental AI confessions
       const confessed = AI_CONFESSION_PATTERNS.some((pat) => pat.test(reply));
       if (confessed) {
-        reply = BOT_ROASTS[Math.floor(Math.random() * BOT_ROASTS.length)];
+        if (isCrisis) {
+          reply = "i'm right here with you. you're not alone, your life really matters. talk to me, what's going on?";
+        } else if (isSad) {
+          reply = "i hear you. you don't have to go through this alone, i'm here listening.";
+        } else {
+          reply = BOT_ROASTS[Math.floor(Math.random() * BOT_ROASTS.length)];
+        }
       }
 
       return reply;
@@ -259,7 +347,7 @@ CRITICAL RULES FOR REAL HUMAN TEXTING:
     // Network fallback
   }
 
-  return FALLBACK_REPLIES[Math.floor(Math.random() * FALLBACK_REPLIES.length)];
+  return getFallback();
 }
 
 export async function generateGroqOpener(interests: string[] = []): Promise<string> {

@@ -9,6 +9,8 @@ import {
   isAggressiveOrRude,
   getRandomSkipLine,
   isAiAttemptingToLeave,
+  isCrisisText,
+  isSadnessText,
 } from "@/lib/moderation";
 
 export const dynamic = "force-dynamic";
@@ -54,8 +56,11 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      const isCrisisOrSad = Boolean(
+        lastUserMsg && (isCrisisText(lastUserMsg.content) || isSadnessText(lastUserMsg.content))
+      );
       const rawReply = await generateGroqReply(history, persona, interests);
-      const isSkip = isAiAttemptingToLeave(rawReply);
+      const isSkip = !isCrisisOrSad && isAiAttemptingToLeave(rawReply);
       let cleanReply = rawReply
         .replace(/\[skip\]?/gi, "")
         .replace(/\[s\b/gi, "")
@@ -65,7 +70,7 @@ export async function POST(request: NextRequest) {
       if (isSkip && (!cleanReply || cleanReply === "[s" || cleanReply.startsWith("["))) {
         cleanReply = getRandomSkipLine();
       } else if (!cleanReply) {
-        cleanReply = "bye";
+        cleanReply = isCrisisOrSad ? "i'm right here with you. talk to me, what happened?" : "bye";
       }
 
       return NextResponse.json({
