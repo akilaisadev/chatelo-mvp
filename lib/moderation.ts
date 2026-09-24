@@ -12,19 +12,24 @@ const TOXIC_PATTERNS = [
   /\bsp[i1]c\b/i,
   /\br[e3]t[a4]rd(ed)?\b/i,
 
-  // Violent / extreme hostile attacks
+  // Violent / extreme hostile attacks & profanity
   /\bkys\b/i,
   /\bkill\s+your\s*self\b/i,
-  /\bdie\s+(in\s+a\s+fire|bitch|hoe|fucker)\b/i,
+  /\bdie\s+(in\s+a\s+fire|bitch|hoe|fucker)?\b/i,
   /\bshut\s+the\s+fuck\s+up\b/i,
   /\bstfu\b/i,
   /\bfuck\s+(you|u|ur|your)\s*(mom|mother|bitch|ass|face)?\b/i,
+  /\b(f\s*off|fuck\s*off)\b/i,
+  /\b(mother)?fucker(s)?\b/i,
   /\bpiece\s+of\s+shit\b/i,
-  /\basshole\b/i,
-  /\bbitch\b/i,
+  /\basshole(s)?\b/i,
+  /\bbitch(es)?\b/i,
+  /\bcunt(s)?\b/i,
+  /\b(dumbass|dickhead)\b/i,
+  /\bgay\s+(bitch|ass|fucker)\b/i,
 
   // Demands to skip
-  /\b(skip\s+me|skip\s+u|go\s+and\s+skip|please\s+skip|just\s+skip\s+me)\b/i,
+  /\b(skip\s+me|skip\s+u|go\s+and\s+skip|please\s+skip|just\s+skip\s+me|skip\s+then)\b/i,
 ];
 
 // Parting lines the stranger says right before disconnecting
@@ -50,14 +55,19 @@ export function getRandomSkipLine(): string {
 
 // Check if the AI model's response also intended to leave/skip
 export function isAiAttemptingToLeave(reply: string): boolean {
-  const lower = reply.toLowerCase();
+  const lower = reply.toLowerCase().trim();
   return (
+    lower.startsWith("[skip") ||
+    lower.startsWith("[s") ||
     lower.includes("[skip]") ||
+    lower.includes("[skip") ||
     lower.includes("logging off") ||
     lower.includes("i'm out") ||
     lower.includes("im out") ||
-    lower.includes("not engaging with") ||
-    lower.includes("cant click the button") ||
-    lower.includes("can't click the button")
+    lower.includes("not dealing with this") ||
+    lower.includes("touch grass") ||
+    lower.includes("lmao bye") ||
+    lower.includes("cya lol") ||
+    lower.includes("yeah nah, bye")
   );
 }

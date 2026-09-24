@@ -56,8 +56,17 @@ export async function POST(request: NextRequest) {
 
       const rawReply = await generateGroqReply(history, persona, interests);
       const isSkip = isAiAttemptingToLeave(rawReply);
-      const cleanReply =
-        rawReply.replace(/\[skip\]/gi, "").replace(/i'm logging off/gi, "bye").trim() || "bye";
+      let cleanReply = rawReply
+        .replace(/\[skip\]?/gi, "")
+        .replace(/\[s\b/gi, "")
+        .replace(/i'm logging off/gi, "bye")
+        .trim();
+
+      if (isSkip && (!cleanReply || cleanReply === "[s" || cleanReply.startsWith("["))) {
+        cleanReply = getRandomSkipLine();
+      } else if (!cleanReply) {
+        cleanReply = "bye";
+      }
 
       return NextResponse.json({
         ok: true,
