@@ -407,7 +407,8 @@ export class StrangerManager {
 
     this.simHistory.push({ role: "user", content: userText });
 
-    const readPause = 400 + Math.random() * 500;
+    // 1. Natural Reading Pause (human reading what you sent on screen)
+    const readPause = Math.min(1600, Math.max(700, userText.length * 25 + Math.random() * 400));
 
     this.simTypingTimer = setTimeout(async () => {
       if (!this.isConnected) return;
@@ -443,7 +444,9 @@ export class StrangerManager {
         reply = CASUAL_RESPONSES[Math.floor(Math.random() * CASUAL_RESPONSES.length)];
       }
 
-      const typingTime = Math.min(2200, Math.max(700, reply.length * 28));
+      // 2. Realistic Typing Duration (human typing speed: ~45-55ms per character)
+      // Minimum 1400ms for short quips, up to 4500ms for roasts/longer answers
+      const typingTime = Math.min(4600, Math.max(1400, reply.length * 45 + Math.random() * 400));
 
       this.simReplyTimer = setTimeout(() => {
         if (!this.isConnected) return;

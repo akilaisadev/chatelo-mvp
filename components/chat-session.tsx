@@ -172,9 +172,13 @@ export function ChatSession({
           ))}
 
           {isStrangerTyping && (
-            <div className="mt-2 flex items-center gap-2.5 py-2">
-              <span className="h-2 w-2 rounded-full bg-signal" aria-hidden="true" />
-              <span className="text-sm font-semibold text-signalText animate-typo-blink">
+            <div className="mt-3 flex items-center gap-2 py-1" role="status" aria-label="Stranger is typing">
+              <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-sm border border-line bg-card px-3.5 py-2.5 shadow-sm">
+                <span className="h-1.5 w-1.5 rounded-full bg-ink/50 animate-bounce [animation-delay:-0.3s]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-ink/50 animate-bounce [animation-delay:-0.15s]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-ink/50 animate-bounce" />
+              </div>
+              <span className="text-xs font-medium text-muted">
                 Stranger is typing…
               </span>
             </div>
