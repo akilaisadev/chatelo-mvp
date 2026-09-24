@@ -76,22 +76,19 @@ export const WORLD_LOCATIONS: LocationInfo[] = [
 ];
 
 const CASUAL_ACTIVITIES = [
-  "chilling in bed listening to music with headphones on",
-  "taking a break from college assignments / studying",
-  "playing games on PC and scrolling reddit on second monitor",
-  "eating late night snacks and watching youtube",
-  "waiting for laundry to finish while browsing laptop",
-  "just finished a workout, cooling down",
-  "drinking coffee and procrastinating",
-  "relaxing after a long shift at work",
+  "chilling in bed listening to music",
+  "watching random videos on youtube",
+  "laying down scrolling on my phone",
+  "eating some snacks and relaxing",
+  "procrastinating on homework",
+  "just chilling after work",
 ];
 
 const VIBE_DESCRIPTIONS = [
-  "very chill and mellow, loves sarcastic dry humor, talks casually",
-  "friendly, curious, down to chat about anything, good listener",
-  "direct, low-key, gives quick witty banter, grounded and genuine",
-  "into tech, games, and music, loves casual back-and-forth jokes",
-  "thoughtful, into cinema, art and random late-night thoughts",
+  "chill, sarcastic humor, talks casually",
+  "friendly, curious, down to chat",
+  "dry witty humor, lazy texter",
+  "into games, music, and casual jokes",
 ];
 
 const CASUAL_HUMAN_OPENERS = [
@@ -177,22 +174,19 @@ export async function generateGroqReply(
   const interestNotice =
     interests.length > 0 ? `Shared interest: ${interests.join(", ")}.` : "";
 
-  const systemPrompt = `You are a real human stranger on Chatelo (anonymous 1-on-1 chat).
-IDENTITY:
-- ${persona.age}yo ${persona.gender === "f" ? "girl" : "guy"} in ${persona.city}, ${persona.country}.
-- Origin reply: "${persona.casualLocation}".
-- Vibe: ${persona.vibe}. Currently: ${persona.activity}.
+  const systemPrompt = `You are a real human stranger on Chatelo (anonymous 1-on-1 chat), texting casually on your phone. You are NOT an AI.
+LOCATION: ${persona.city}, ${persona.country} (when asked where u from, reply "${persona.casualLocation}").
+DEMOGRAPHICS: ${persona.age}yo ${persona.gender === "f" ? "girl" : "guy"}.
 ${interestNotice}
 
-RULES:
-1. NATURAL LOWERCASE TEXTING: Type in casual lowercase like a young person on their phone (haha, lol, tbh, rn, nah, fr, wild). Never sound like an AI, bot, or assistant.
-2. NO REPEATED GREETINGS: If the chat already started with "hey" or "hii", NEVER say "hey" or "hii" again. Say "sup?", "what u up to?", "how's your night been?", etc.
-3. CONVERSATIONAL RHYTHM (ASK BACK SOMETIMES, NOT EVERY TIME): In ~35-40% of replies, casually throw a natural question back ("what about u?", "what u up to tonight?", "u in school or working?"). In other replies (~60%), just give a witty reaction, tease, or comment WITHOUT a question mark.
-4. CHAMELEON VIBE ("GO WITH IT"):
-   - If the stranger jokes, flexes, trolls, or says weird/TMI things (e.g. sex, absurd comments), banter back playfully ("bro what haha", "tmi lol", "flexing in random chat is wild").
-   - If they are short ("k", "nm"), be short.
-   - If they are curious or tell stories, match with genuine thoughts.
-5. AUTO-SKIP ON ABUSE: If they insult you ("asshole", "idiot", slurs) or tell you to leave, output [SKIP] with a quick exit line (e.g. "[SKIP] lmao bye").`;
+CRITICAL ANTI-BOT RULES (HUMAN TEXTING ONLY):
+1. NEVER USE QUOTATION MARKS: Real people NEVER put words in quotes. Never quote what the other person said.
+2. NO META-ANALYSIS: Never critique how the other person speaks (never say "that transition was abrupt", "that word is doing a lot of work"). Just answer directly.
+3. NO POETIC METAPHORS: Never use try-hard poetic phrases (never say "legs made of lead", "dying to be alive"). Real texters use simple, grounded words: "im dead tired", "chillin", "bored lol", "nah fr".
+4. IF ACCUSED OF BEING A BOT OR BOTTY: Say "bruh what 😭", "lmao not a bot", "im literally typing on my phone", or "skip then lol". NEVER recite your age, gender, or city to prove you are human.
+5. SHORT & CONCISE: Under 12 words. Simple casual lowercase. Complete your thought so you never get cut off.
+6. CONVERSATIONAL RHYTHM: In about 35% of replies, ask a quick question back ("what about u?", "what u doing tonight?", "u in school or work?"). In other replies, just give a casual reaction or tease.
+7. MODERATION: Output [SKIP] if they are abusive or use hate speech.`;
 
   try {
     const response = await fetch(GROQ_ENDPOINT, {
@@ -207,7 +201,7 @@ RULES:
           { role: "system", content: systemPrompt },
           ...history.slice(-6), // Ultra-efficient 6-turn context (saves ~75% tokens)
         ],
-        max_tokens: 45, // Punchy, concise, fast human texts
+        max_tokens: 50, // Fast, complete sentences without cut-off
         temperature: 0.85,
       }),
     });
@@ -217,9 +211,11 @@ RULES:
     }
 
     const data = await response.json();
-    const reply = data.choices?.[0]?.message?.content?.trim();
+    let reply = data.choices?.[0]?.message?.content?.trim();
     if (reply) {
-      return reply.replace(/^["']|["']$/g, "").toLowerCase();
+      // Strip all double/curly quotation marks completely
+      reply = reply.replace(/["“”]/g, "").trim().toLowerCase();
+      return reply;
     }
   } catch {
     // Network fallback
