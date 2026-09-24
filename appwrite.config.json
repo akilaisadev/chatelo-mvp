@@ -1,0 +1,25 @@
+{
+    "organizationId": "6ab4df326ea1b30a1604",
+    "projectId": "chatelo",
+    "projectName": "Chatelo",
+    "endpoint": "https://fra.cloud.appwrite.io/v1",
+    "sites": [
+        {
+            "$id": "chatelo",
+            "name": "Chatelo",
+            "framework": "nextjs",
+            "adapter": "ssr",
+            "buildRuntime": "node-22",
+            "installCommand": "npm install",
+            "buildCommand": "npm run build",
+            "outputDirectory": "./.next",
+            "fallbackFile": "",
+            "buildSpecification": "s-2vcpu-2gb",
+            "runtimeSpecification": "s-0.5vcpu-512mb",
+            "deploymentRetention": 0,
+            "timeout": 30,
+            "logging": true,
+            "path": "."
+        }
+    ]
+}
