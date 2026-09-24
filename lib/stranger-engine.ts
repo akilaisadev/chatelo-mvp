@@ -81,6 +81,8 @@ export class StrangerManager {
   private mode: "idle" | "server" | "broadcast" | "simulation" = "idle";
   private isSearching: boolean = false;
   private isConnected: boolean = false;
+  private simLocation: string = "";
+  private simAsl: string = "";
 
   constructor(events: StrangerSessionEvents) {
     this.events = events;
@@ -288,6 +290,33 @@ export class StrangerManager {
     this.mode = "simulation";
     this.events.onStatusChange("connected");
 
+    const SIM_LOCATIONS = [
+      "germany, berlin! u?",
+      "toronto canada",
+      "california!",
+      "melbourne australia :)",
+      "uk, london",
+      "japan! tokyo",
+      "amsterdam netherlands",
+      "sweden, stockholm",
+      "dublin ireland, u?",
+      "barcelona spain",
+      "auckland new zealand",
+      "norway, oslo",
+      "chicago",
+      "france, paris",
+      "austin texas, u?",
+      "seattle",
+      "seoul south korea",
+      "singapore, u?",
+      "vancouver canada",
+      "rome, italy",
+    ];
+    this.simLocation = SIM_LOCATIONS[Math.floor(Math.random() * SIM_LOCATIONS.length)];
+    const age = Math.floor(Math.random() * 6) + 19;
+    const gender = Math.random() < 0.5 ? "m" : "f";
+    this.simAsl = `${age} ${gender} ${this.simLocation.replace(/[!?]|:\)/g, "").trim()}, u?`;
+
     let mutual: string[] = [];
     if (this.activeInterests.length > 0) {
       if (Math.random() < 0.75) {
@@ -392,12 +421,10 @@ export class StrangerManager {
       let reply = "";
       const lower = userText.toLowerCase();
 
-      if (lower.startsWith("m") || lower.startsWith("f") || lower.includes("asl") || lower.includes("age")) {
-        const ages = ["21 m here", "23 f", "19 m, student", "24 m, chillin", "22 f"];
-        reply = ages[Math.floor(Math.random() * ages.length)] + ", u?";
-      } else if (lower.includes("where") || lower.includes("from") || lower.includes("country")) {
-        const places = ["germany, u?", "california!", "london, it's raining here haha", "toronto canada", "melbourne australia", "japan!"];
-        reply = places[Math.floor(Math.random() * places.length)];
+      if (lower.startsWith("m") || lower.startsWith("f") || lower.includes("asl") || lower.includes("age") || lower === "m or f") {
+        reply = this.simAsl || "21 m here, u?";
+      } else if (lower.includes("where") || lower.includes("from") || lower.includes("country") || lower.includes("wya") || lower.includes("location")) {
+        reply = this.simLocation || "germany, berlin! u?";
       } else if (lower.includes("music") || lower.includes("song") || lower.includes("band")) {
         reply = "mostly into indie rock and 90s electronic stuff lately, what about you?";
       } else if (lower.includes("game") || lower.includes("gaming") || lower.includes("play")) {

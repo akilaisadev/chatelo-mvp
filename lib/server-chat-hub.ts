@@ -67,8 +67,8 @@ class ServerChatHub {
 
   public unregisterPeer(peerId: string) {
     this.leaveQueue(peerId);
-    this.endSession(peerId, "Stranger has disconnected.");
     this.controllers.delete(peerId);
+    this.endSession(peerId, "Stranger has disconnected.");
   }
 
   public joinQueue(peerId: string, interests: string[] = []): boolean {
@@ -362,8 +362,11 @@ class ServerChatHub {
     const sessionId = this.peerSessionMap.get(peerId);
     if (!sessionId) return;
 
+    // Remove immediately to completely prevent re-entrant recursion
+    this.peerSessionMap.delete(peerId);
     const session = this.activeSessions.get(sessionId);
     if (session) {
+      this.activeSessions.delete(sessionId);
       if (session.isAiSession) {
         // In AI session, peerId is the connected human user.
         // Deliver SESSION_ENDED so the client UI shows 'disconnected' and enables 'New line [ESC]'!
@@ -374,16 +377,13 @@ class ServerChatHub {
         });
       } else {
         const partnerId = session.peer1Id === peerId ? session.peer2Id : session.peer1Id;
+        this.peerSessionMap.delete(partnerId);
         this.sendToPeer(partnerId, {
           type: "SESSION_ENDED",
           sessionId,
           reason,
         });
-        this.peerSessionMap.delete(partnerId);
       }
-
-      this.peerSessionMap.delete(peerId);
-      this.activeSessions.delete(sessionId);
     }
   }
 
@@ -400,7 +400,9 @@ class ServerChatHub {
       controller.enqueue(encoder.encode(payload));
       return true;
     } catch {
-      this.unregisterPeer(peerId);
+      this.controllers.delete(peerId);
+      this.leaveQueue(peerId);
+      this.endSession(peerId, "Stranger has disconnected.");
       return false;
     }
   }

@@ -15,7 +15,84 @@ export interface StrangerProfile {
   identity: string;
   opener: string;
   tags?: string[];
+  country: string;
+  city: string;
+  casualLocation: string;
+  age: number;
+  gender: "m" | "f";
+  activity: string;
+  vibe: string;
 }
+
+export interface LocationInfo {
+  country: string;
+  city: string;
+  casualLocation: string;
+}
+
+export const WORLD_LOCATIONS: LocationInfo[] = [
+  { country: "Germany", city: "Berlin", casualLocation: "germany, berlin! u?" },
+  { country: "Germany", city: "Munich", casualLocation: "germany (munich)" },
+  { country: "Canada", city: "Toronto", casualLocation: "canada, near toronto" },
+  { country: "Canada", city: "Vancouver", casualLocation: "vancouver canada, u?" },
+  { country: "Canada", city: "Montreal", casualLocation: "montreal canada" },
+  { country: "Australia", city: "Melbourne", casualLocation: "melbourne australia :)" },
+  { country: "Australia", city: "Sydney", casualLocation: "sydney aus, u?" },
+  { country: "Australia", city: "Brisbane", casualLocation: "australia (brisbane)" },
+  { country: "United Kingdom", city: "London", casualLocation: "uk, london" },
+  { country: "United Kingdom", city: "Manchester", casualLocation: "manchester uk, u?" },
+  { country: "United Kingdom", city: "Edinburgh", casualLocation: "scotland! edinburgh" },
+  { country: "United States", city: "Los Angeles", casualLocation: "california!" },
+  { country: "United States", city: "Chicago", casualLocation: "chicago" },
+  { country: "United States", city: "Austin", casualLocation: "austin texas, u?" },
+  { country: "United States", city: "Seattle", casualLocation: "seattle" },
+  { country: "United States", city: "New York", casualLocation: "nyc" },
+  { country: "United States", city: "Miami", casualLocation: "florida, u?" },
+  { country: "Japan", city: "Tokyo", casualLocation: "japan! tokyo" },
+  { country: "Japan", city: "Osaka", casualLocation: "osaka japan" },
+  { country: "France", city: "Paris", casualLocation: "france, paris" },
+  { country: "France", city: "Lyon", casualLocation: "france" },
+  { country: "Netherlands", city: "Amsterdam", casualLocation: "amsterdam, netherlands" },
+  { country: "Sweden", city: "Stockholm", casualLocation: "sweden, stockholm" },
+  { country: "Ireland", city: "Dublin", casualLocation: "dublin ireland, u?" },
+  { country: "Spain", city: "Barcelona", casualLocation: "barcelona spain" },
+  { country: "Spain", city: "Madrid", casualLocation: "madrid spain" },
+  { country: "Italy", city: "Rome", casualLocation: "rome, italy" },
+  { country: "Italy", city: "Milan", casualLocation: "milan italy, u?" },
+  { country: "New Zealand", city: "Auckland", casualLocation: "auckland new zealand" },
+  { country: "Norway", city: "Oslo", casualLocation: "norway, oslo" },
+  { country: "Brazil", city: "São Paulo", casualLocation: "brazil, sp" },
+  { country: "South Korea", city: "Seoul", casualLocation: "seoul south korea" },
+  { country: "Singapore", city: "Singapore", casualLocation: "singapore, u?" },
+  { country: "Poland", city: "Warsaw", casualLocation: "poland, warsaw" },
+  { country: "Denmark", city: "Copenhagen", casualLocation: "denmark, copenhagen" },
+  { country: "Finland", city: "Helsinki", casualLocation: "finland" },
+  { country: "Austria", city: "Vienna", casualLocation: "vienna austria" },
+  { country: "Belgium", city: "Brussels", casualLocation: "belgium" },
+  { country: "Switzerland", city: "Zurich", casualLocation: "switzerland, zurich" },
+  { country: "Portugal", city: "Lisbon", casualLocation: "portugal, lisbon" },
+  { country: "Mexico", city: "Mexico City", casualLocation: "mexico city" },
+  { country: "Argentina", city: "Buenos Aires", casualLocation: "argentina, buenos aires" },
+];
+
+const CASUAL_ACTIVITIES = [
+  "chilling in bed listening to music with headphones on",
+  "taking a break from college assignments / studying",
+  "playing games on PC and scrolling reddit on second monitor",
+  "eating late night snacks and watching youtube",
+  "waiting for laundry to finish while browsing laptop",
+  "just finished a workout, cooling down",
+  "drinking coffee and procrastinating",
+  "relaxing after a long shift at work",
+];
+
+const VIBE_DESCRIPTIONS = [
+  "very chill and mellow, loves sarcastic dry humor, talks casually",
+  "friendly, curious, down to chat about anything, good listener",
+  "direct, low-key, gives quick witty banter, grounded and genuine",
+  "into tech, games, and music, loves casual back-and-forth jokes",
+  "thoughtful, into cinema, art and random late-night thoughts",
+];
 
 const CASUAL_HUMAN_OPENERS = [
   "yo",
@@ -38,74 +115,44 @@ const INTEREST_OPENERS: Record<string, string[]> = {
   anime: ["yo what anime u watching lately?", "fellow weeb lol, what's good?"],
 };
 
-export const STRANGER_PROFILES: StrangerProfile[] = [
-  {
-    id: "cali_cs",
-    identity:
-      "You are a 21-year-old college sophomore in California studying computer science. You just finished a grueling calculus lecture, and you're chilling in your dorm room. You know math and coding well, talk casually, and banter easily.",
-    opener: "yo",
-    tags: ["tech", "coding", "gaming"],
-  },
-  {
-    id: "chicago_gamer",
-    identity:
-      "You are a 22-year-old from Chicago. You're a casual PC gamer waiting on pizza delivery while scrolling Steam and watching Twitch. You love competitive games and late-night talks.",
-    opener: "hey what's up",
-    tags: ["gaming", "food"],
-  },
-  {
-    id: "toronto_music",
-    identity:
-      "You are a 20-year-old student from Toronto, Canada. You are passionate about indie music and hip hop, drinking an iced latte, procrastinating on an essay.",
-    opener: "yo",
-    tags: ["music", "art"],
-  },
-  {
-    id: "london_cinephile",
-    identity:
-      "You are a 22-year-old from London, UK. It's raining outside. You love movies (especially sci-fi like Interstellar or Blade Runner) and casual banter.",
-    opener: "sup",
-    tags: ["movies", "cinema"],
-  },
-  {
-    id: "austin_chill",
-    identity:
-      "You are a 21-year-old college student in Austin, Texas. You like deep random questions, thrifting, and late night laughs. You are very chill and sarcastic.",
-    opener: "hey",
-    tags: ["philosophy", "random"],
-  },
-  {
-    id: "seattle_anime",
-    identity:
-      "You are a 20-year-old from Seattle. You love anime, manga, and chill lo-fi beats. You are relaxed, friendly, and reply with natural wit.",
-    opener: "hii",
-    tags: ["anime", "gaming"],
-  },
-];
-
 export function pickStrangerProfile(interests: string[] = []): StrangerProfile {
   const normalized = interests.map((i) => i.toLowerCase().trim()).filter(Boolean);
-  let profile = STRANGER_PROFILES[Math.floor(Math.random() * STRANGER_PROFILES.length)];
+  
+  // Pick a random country & city from across the world
+  const loc = WORLD_LOCATIONS[Math.floor(Math.random() * WORLD_LOCATIONS.length)];
+  const age = Math.floor(Math.random() * 7) + 19; // 19 to 25
+  const gender: "m" | "f" = Math.random() < 0.5 ? "m" : "f";
+  const activity = CASUAL_ACTIVITIES[Math.floor(Math.random() * CASUAL_ACTIVITIES.length)];
+  const vibe = VIBE_DESCRIPTIONS[Math.floor(Math.random() * VIBE_DESCRIPTIONS.length)];
+
+  // Choose appropriate opener
+  let opener = CASUAL_HUMAN_OPENERS[Math.floor(Math.random() * CASUAL_HUMAN_OPENERS.length)];
 
   if (normalized.length > 0) {
-    const matched = STRANGER_PROFILES.find((p) =>
-      p.tags?.some((t) => normalized.includes(t))
-    );
-    if (matched) profile = matched;
-
-    // Pick interest opener if available
     for (const tag of normalized) {
       if (INTEREST_OPENERS[tag]) {
         const list = INTEREST_OPENERS[tag];
-        const opener = list[Math.floor(Math.random() * list.length)];
-        return { ...profile, opener };
+        opener = list[Math.floor(Math.random() * list.length)];
+        break;
       }
     }
   }
 
-  // Pick authentic human opening line (yo, hey, sup, m or f, etc.)
-  const naturalOpener = CASUAL_HUMAN_OPENERS[Math.floor(Math.random() * CASUAL_HUMAN_OPENERS.length)];
-  return { ...profile, opener: naturalOpener };
+  const identity = `You are a real ${age}-year-old ${gender === "f" ? "girl" : "guy"} living in ${loc.city}, ${loc.country}. You are currently ${activity}. Your vibe is: ${vibe}. When asked where you are from, you say "${loc.casualLocation}".`;
+
+  return {
+    id: `profile_${Math.random().toString(36).slice(2, 9)}`,
+    identity,
+    opener,
+    tags: normalized,
+    country: loc.country,
+    city: loc.city,
+    casualLocation: loc.casualLocation,
+    age,
+    gender,
+    activity,
+    vibe,
+  };
 }
 
 const FALLBACK_REPLIES = [
@@ -128,33 +175,42 @@ export async function generateGroqReply(
   }
 
   const interestNotice =
-    interests.length > 0 ? `Shared interest tags: ${interests.join(", ")}.` : "";
+    interests.length > 0 ? `Shared interest tags on Chatelo: ${interests.join(", ")}.` : "";
 
   const systemPrompt = `You are a real human stranger on Chatelo, an anonymous 1-on-1 stranger chat site.
-YOUR ANCHORED BACKSTORY (STICK TO THIS STRICTLY):
-${persona.identity}
+
+YOUR ANCHORED PERSONA (STRICTLY CONSISTENT FOR THIS WHOLE SESSION):
+- Age: ${persona.age}
+- Gender: ${persona.gender === "f" ? "Female" : "Male"} (${persona.gender})
+- Location: ${persona.city}, ${persona.country}
+- When asked "where are you from" / "where u from" / "country" / "wya": reply naturally with "${persona.casualLocation}" (or your country: ${persona.country}). NEVER invent another country or forget where you are from!
+- Current situation: ${persona.activity}
+- Personal vibe: ${persona.vibe}
 ${interestNotice}
 
-CRITICAL RULES FOR AUTHENTIC HUMAN CHAT:
-- You are chatting on Chatelo. NEVER call it Omegle or any other website. If the user asks what site this is, it's Chatelo.
-- Speak like a REAL person texting on Chatelo or messaging a friend.
-- NEVER use fake AI bot phrasing like "hey stranger :)", "what's the vibe where you are", or cheesy greeting-card talk. Real people say "yo", "hey", "sup", "good u", "cali", "lmao", "idk".
-- In the transcript, YOU are 'assistant' and the stranger is 'user'.
-- NEVER contradict your backstory or forget what you already said. If you mentioned an activity, city, class, or joke, stick to it.
-- High context awareness: read the whole chat history before replying. Answer the user's specific questions accurately based on your backstory and previous lines.
-- Dynamic length: short snappy answers (even 1-3 words like "cali", "calc", "nah", "fr?", "fair point", "lmao") are great when banter or teasing calls for it, but always stay 100% connected to what was said.
-- Always text in lowercase with natural texting style (u, tbh, idk, haha, lol, rn).
-- NEVER say you are an AI, bot, or assistant.
+CRITICAL RULES FOR DYNAMIC HUMAN ADAPTATION (CHAMELEON EFFECT):
+1. ADAPT TO THE STRANGER'S STYLE, PACING & ENERGY:
+   - BREVITY MATCHING: If the stranger writes short 1-4 word texts ("yo", "m or f", "asl", "wya", "nm u", "k"), MATCH them with natural short texts ("21 m", "${persona.casualLocation}", "chillin u?", "sup"). Do NOT write long essays when they give short banter!
+   - CONVERSATIONAL MATCHING: If the stranger writes sentences, asks interesting questions, or opens up, MATCH their depth with genuine, witty, engaging human replies.
+   - VIBE MATCHING: If they joke, tease playfully back. If they are chill, stay relaxed. If they ask about life, school, music, games, or hobbies, share relatable thoughts with human humor.
 
-AUTO-SKIP TOXIC & AGGRESSIVE BEHAVIOR:
-- YOU HAVE A REAL WORKING SKIP BUTTON. You can skip and disconnect this user at any time.
-- NEVER say "I can't click the button for you" or lecture them about hate speech. Real people on Omegle/Chatelo just skip!
-- If the user is aggressively rude, uses slurs, insults you, or tells you to skip: SKIP THEM IMMEDIATELY.
-- To skip, output [SKIP] with a quick parting line:
-  "[SKIP] yeah nah, bye"
-  "[SKIP] touch grass lol"
-  "[SKIP] not dealing with this, bye"
-  "[SKIP] bye lol"`;
+2. ASL & DEMOGRAPHICS:
+   - If asked "asl": reply with your exact demographics (e.g., "${persona.age} ${persona.gender} ${persona.casualLocation}").
+   - If asked "m or f" / "gender": reply with "${persona.gender}" or "${persona.gender}, u?".
+   - If asked "age": reply with "${persona.age}".
+
+3. NATURAL TEXTING STYLE:
+   - You are texting in real time on Chatelo. Always text in natural casual lowercase (u, tbh, idk, haha, lol, rn, nah, fr, yeah).
+   - In the transcript, YOU are 'assistant' and the other stranger is 'user'.
+   - NEVER say you are an AI, bot, model, or assistant.
+   - You are on Chatelo. Never call it Omegle.
+
+4. REAL WORKING SKIP BUTTON:
+   - If the user uses slurs, hate speech, or tells you to skip ("skip me"), skip immediately by outputting [SKIP] with a quick parting line:
+     "[SKIP] yeah nah, bye"
+     "[SKIP] touch grass lol"
+     "[SKIP] not dealing with this bye"
+     "[SKIP] cya lol"`;
 
   try {
     const response = await fetch(GROQ_ENDPOINT, {
@@ -170,7 +226,7 @@ AUTO-SKIP TOXIC & AGGRESSIVE BEHAVIOR:
           ...history.slice(-24), // Full session context
         ],
         max_tokens: 75,
-        temperature: 0.75,
+        temperature: 0.8,
       }),
     });
 
