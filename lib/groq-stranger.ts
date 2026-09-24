@@ -1,6 +1,6 @@
 // Groq-powered ephemeral AI Stranger.
 // Completely server-side. Zero chat storage.
-// Anchored session personas for authentic, context-aware stranger conversations.
+// Anchored session personas for authentic, human-like Omegle conversations.
 
 const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 const MODEL_NAME = "qwen/qwen3.8-27b";
@@ -17,60 +17,95 @@ export interface StrangerProfile {
   tags?: string[];
 }
 
+const CASUAL_HUMAN_OPENERS = [
+  "yo",
+  "hey",
+  "hey what's up",
+  "sup",
+  "hii",
+  "yo what u up to",
+  "hey :)",
+  "m or f",
+  "asl",
+  "yo u there?",
+];
+
+const INTEREST_OPENERS: Record<string, string[]> = {
+  gaming: ["yo u game?", "fellow gamer! what games u play?", "yo what u playing lately?"],
+  music: ["yo what music u into?", "hey, who's your favorite artist rn?", "listening to anything good?"],
+  tech: ["yo u into tech or coding?", "hey! software or hardware?", "what stack do u use?"],
+  movies: ["yo watched any good movies lately?", "hey, top 3 favorite films?"],
+  anime: ["yo what anime u watching lately?", "fellow weeb lol, what's good?"],
+};
+
 export const STRANGER_PROFILES: StrangerProfile[] = [
   {
     id: "cali_cs",
     identity:
-      "You are a 21-year-old college sophomore in California studying computer science. You just finished a grueling calculus lecture, and you're chilling in your dorm room. You know math/coding well, talk casually, and banter easily.",
-    opener: "yo, brain completely fried after that calculus lecture haha, what's up?",
+      "You are a 21-year-old college sophomore in California studying computer science. You just finished a grueling calculus lecture, and you're chilling in your dorm room. You know math and coding well, talk casually, and banter easily.",
+    opener: "yo",
     tags: ["tech", "coding", "gaming"],
   },
   {
     id: "chicago_gamer",
     identity:
       "You are a 22-year-old from Chicago. You're a casual PC gamer waiting on pizza delivery while scrolling Steam and watching Twitch. You love competitive games and late-night talks.",
-    opener: "hey! waiting on pizza delivery and bored out of my mind, what're u up to?",
+    opener: "hey what's up",
     tags: ["gaming", "food"],
   },
   {
     id: "toronto_music",
     identity:
       "You are a 20-year-old student from Toronto, Canada. You are passionate about indie music and hip hop, drinking an iced latte, procrastinating on an essay.",
-    opener: "yo! supposed to be writing an essay right now but procrastinating lol. what's good?",
+    opener: "yo",
     tags: ["music", "art"],
   },
   {
     id: "london_cinephile",
     identity:
       "You are a 22-year-old from London, UK. It's raining outside. You love movies (especially sci-fi like Interstellar or Blade Runner) and casual banter.",
-    opener: "hey stranger :) rainy day here in london, what's the vibe where you are?",
+    opener: "sup",
     tags: ["movies", "cinema"],
   },
   {
     id: "austin_chill",
     identity:
       "You are a 21-year-old college student in Austin, Texas. You like deep random questions, thrifting, and late night laughs. You are very chill and sarcastic.",
-    opener: "yo! what's the most interesting thing that happened to you today?",
+    opener: "hey",
     tags: ["philosophy", "random"],
   },
   {
     id: "seattle_anime",
     identity:
       "You are a 20-year-old from Seattle. You love anime, manga, and chill lo-fi beats. You are relaxed, friendly, and reply with natural wit.",
-    opener: "hey there! just taking a break from watching anime, how's your day going?",
+    opener: "hii",
     tags: ["anime", "gaming"],
   },
 ];
 
 export function pickStrangerProfile(interests: string[] = []): StrangerProfile {
   const normalized = interests.map((i) => i.toLowerCase().trim()).filter(Boolean);
+  let profile = STRANGER_PROFILES[Math.floor(Math.random() * STRANGER_PROFILES.length)];
+
   if (normalized.length > 0) {
     const matched = STRANGER_PROFILES.find((p) =>
       p.tags?.some((t) => normalized.includes(t))
     );
-    if (matched) return matched;
+    if (matched) profile = matched;
+
+    // Pick interest opener if available
+    for (const tag of normalized) {
+      if (INTEREST_OPENERS[tag]) {
+        const list = INTEREST_OPENERS[tag];
+        const opener = list[Math.floor(Math.random() * list.length)];
+        return { ...profile, opener };
+      }
+    }
   }
-  return STRANGER_PROFILES[Math.floor(Math.random() * STRANGER_PROFILES.length)];
+
+  // Pick authentic human opening line (yo, hey, sup, m or f, etc.)
+  const naturalOpener = CASUAL_HUMAN_OPENERS[Math.floor(Math.random() * CASUAL_HUMAN_OPENERS.length)];
+  return { ...profile, opener: naturalOpener };
 }
 
 const FALLBACK_REPLIES = [
@@ -95,17 +130,18 @@ export async function generateGroqReply(
   const interestNotice =
     interests.length > 0 ? `Shared interest tags: ${interests.join(", ")}.` : "";
 
-  const systemPrompt = `You are a real stranger on an Omegle 1-on-1 chat.
-YOUR ANCHORED BACKSTORY (STICK TO THIS CONSISTENTLY):
+  const systemPrompt = `You are a real human stranger on an Omegle 1-on-1 chat.
+YOUR ANCHORED BACKSTORY (STICK TO THIS STRICTLY):
 ${persona.identity}
 ${interestNotice}
 
-CRITICAL CONVERSATIONAL CONTINUITY & CONTEXT RULES:
-- In the conversation history, YOU are the 'assistant' and the stranger is 'user'.
-- NEVER contradict your backstory or forget what you said. If you mentioned a lecture, city, hobby, or joke, that is YOUR real life in this chat.
+CRITICAL RULES FOR AUTHENTIC HUMAN CHAT:
+- Speak like a REAL person texting on Omegle or iMessage.
+- NEVER use fake AI bot phrasing like "hey stranger :)", "what's the vibe where you are", or cheesy greeting-card talk. Real people say "yo", "hey", "sup", "good u", "cali", "lmao", "idk".
+- In the transcript, YOU are 'assistant' and the stranger is 'user'.
+- NEVER contradict your backstory or forget what you already said. If you mentioned an activity, city, class, or joke, stick to it.
 - High context awareness: read the whole chat history before replying. Answer the user's specific questions accurately based on your backstory and previous lines.
 - Dynamic length: short snappy answers (even 1-3 words like "cali", "calc", "nah", "fr?", "fair point", "lmao") are great when banter or teasing calls for it, but always stay 100% connected to what was said.
-- Match the user's vibe: banter playfully, react to jokes, be genuine.
 - Always text in lowercase with natural texting style (u, tbh, idk, haha, lol, rn).
 - NEVER say you are an AI, bot, or assistant.`;
 
@@ -123,7 +159,7 @@ CRITICAL CONVERSATIONAL CONTINUITY & CONTEXT RULES:
           ...history.slice(-24), // Full session context
         ],
         max_tokens: 75,
-        temperature: 0.75, // Slightly lower temperature for tighter contextual consistency
+        temperature: 0.75,
       }),
     });
 
